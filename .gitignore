@@ -1,1 +1,31 @@
+# ENV файлы — никогда не заливать на GitHub
+frontend/.env
+backend/.env
+ml/.env
 .env
+
+.claude/
+.venv/
+# Dependencies
+frontend/node_modules/
+backend/__pycache__/
+backend/*.pyc
+ml/__pycache__/
+ml/*.pyc
+
+# Virtual environments
+backend/venv/
+ml/venv/
+
+# Build
+frontend/dist/
+frontend/.vite/
+
+# ML модели — могут весить сотни МБ
+ml/models/*.pkl
+ml/models/*.joblib
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
