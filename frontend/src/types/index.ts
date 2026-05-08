@@ -1,5 +1,6 @@
 // Команда (из TEAMS)
 export interface Team {
+  abbr: string;
   name: string;
   city: string;
   color: string;
