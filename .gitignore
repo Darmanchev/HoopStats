@@ -4,26 +4,14 @@ backend/.env
 ml/.env
 .env
 
+__pycache__/
+*.pyc
 .claude/
 .venv/
-# Dependencies
-frontend/node_modules/
-backend/__pycache__/
-backend/*.pyc
-ml/__pycache__/
-ml/*.pyc
+data/
 
-# Virtual environments
-backend/venv/
-ml/venv/
-
-# Build
-frontend/dist/
 frontend/.vite/
-
-# ML модели — могут весить сотни МБ
-ml/models/*.pkl
-ml/models/*.joblib
+frontend/node_modules/
 
 # IDE
 .vscode/
