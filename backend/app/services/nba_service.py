@@ -1,5 +1,6 @@
 import time
-from nba_api.stats.endpoints import teamgamelog
+import httpx
+from datetime import datetime
 from nba_api.stats.static import teams as nba_teams
 from nba_api.live.nba.endpoints import scoreboard
 from nba_api.stats.endpoints import teamgamelog
@@ -10,6 +11,48 @@ from sqlalchemy import select
 from ..models.team_stats import TeamStats
 from ..models.team import Team
 from ..models.game import Game
+from ..models.injury import Injury
+
+
+def determine_season_type(date_str: str) -> str:
+    """
+    NBA Playoffs start mid-April (14-20) and end in June.
+    Regular season runs from October to mid-April.
+    Handles multiple date formats from NBA API.
+    """
+    try:
+        # Try parsing ISO format: "2026-05-11" or "2026-05-11T00:00:00"
+        if "T" in date_str:
+            date_str = date_str.split("T")[0]
+        
+        # Try standard date parsing
+        for fmt in ("%Y-%m-%d", "%B %d, %Y", "%b %d, %Y", "%m/%d/%Y"):
+            try:
+                dt = datetime.strptime(date_str.strip(), fmt)
+                # Playoffs: April 14+ through June
+                if dt.month == 4 and dt.day >= 14:
+                    return "playoffs"
+                if dt.month in (5, 6):
+                    return "playoffs"
+                return "regular"
+            except ValueError:
+                continue
+        
+        # Fallback: try to extract month from string
+        date_lower = date_str.lower()
+        if any(m in date_lower for m in ["may", "june"]):
+            return "playoffs"
+        if "april" in date_lower:
+            try:
+                day = int(date_str.split()[1].replace(",", ""))
+                if day >= 14:
+                    return "playoffs"
+            except (ValueError, IndexError):
+                pass
+        
+        return "regular"
+    except Exception:
+        return "regular"
 
 # цвета команд — храним сами
 TEAM_COLORS = {
@@ -84,28 +127,6 @@ async def sync_teams(db: AsyncSession):
 
     await db.commit()
     print(f"Синхронизировано {len(all_teams)} команд")
-    """Загружает все команды из NBA API в базу"""
-    all_teams = nba_teams.get_teams()
-
-    for t in all_teams:
-        abbr = t["abbreviation"]
-        colors = TEAM_COLORS.get(abbr, {"color": "#000000", "accent": "#FFFFFF"})
-
-        existing = await db.execute(select(Team).where(Team.abbr == abbr))
-        team = existing.scalar_one_or_none()
-
-        if not team:
-            db.add(Team(
-                abbr=abbr,
-                name=t["nickname"],
-                city=t["city"],
-                color=colors["color"],
-                accent=colors["accent"],
-                record="0-0",
-            ))
-
-    await db.commit()
-    print(f"Синхронизировано {len(all_teams)} команд")
 
 async def sync_games(db: AsyncSession):
     """Загружает живые игры сегодня"""
@@ -143,6 +164,7 @@ async def sync_games(db: AsyncSession):
                     time=status,
                     venue=g.get("arenaName", ""),
                     is_today=True,
+                    season_type=determine_season_type(g["gameEt"]),
                     score1=away["score"] if is_final else None,
                     score2=home["score"] if is_final else None,
                 ))
@@ -231,9 +253,10 @@ async def sync_team_stats(db: AsyncSession):
 
 
 async def sync_historical_games(db: AsyncSession, season: str = "2025-26"):
-    """Загружает все игры регулярного сезона"""
+    """Загружает все игры сезона (regular + playoffs)"""
     print(f"Загрузка игр сезона {season}...")
     
+    # Загружаем регулярный сезон
     finder = leaguegamefinder.LeagueGameFinder(
         season_nullable=season,
         season_type_nullable="Regular Season",
@@ -274,10 +297,148 @@ async def sync_historical_games(db: AsyncSession, season: str = "2025-26"):
             time="Final",
             venue="",
             is_today=False,
+            season_type=determine_season_type(g1["GAME_DATE"]),
             score1=int(g1["PTS"]) if g1["PTS"] else None,
             score2=int(g2["PTS"]) if g2["PTS"] else None,
         ))
         count += 1
 
     await db.commit()
-    print(f"Загружено {count} исторических игр")
+    print(f"Загружено {count} игр регулярного сезона")
+
+    # Загружаем плей-офф
+    await _sync_playoffs(db, season)
+
+
+async def _sync_playoffs(db: AsyncSession, season: str):
+    """Загружает игры плей-офф"""
+    print(f"Загрузка игр плей-офф сезона {season}...")
+    
+    try:
+        finder = leaguegamefinder.LeagueGameFinder(
+            season_nullable=season,
+            season_type_nullable="Playoffs",
+        )
+    except Exception:
+        print("Плей-офф ещё не начался или данные недоступны")
+        return
+    
+    data = finder.get_dict()
+    if not data.get("resultSets") or not data["resultSets"][0].get("rowSet"):
+        print("Игр плей-офф не найдено")
+        return
+    
+    headers = data["resultSets"][0]["headers"]
+    rows = data["resultSets"][0]["rowSet"]
+    
+    seen = set()
+    count = 0
+    
+    for row in rows:
+        g = dict(zip(headers, row))
+        game_id = str(g["GAME_ID"])
+        
+        if game_id in seen:
+            continue
+        seen.add(game_id)
+        
+        pair = [r for r in rows if dict(zip(headers, r))["GAME_ID"] == game_id]
+        if len(pair) < 2:
+            continue
+        
+        g1 = dict(zip(headers, pair[0]))
+        g2 = dict(zip(headers, pair[1]))
+        
+        existing = await db.execute(select(Game).where(Game.id == game_id))
+        if existing.scalar_one_or_none():
+            continue
+        
+        db.add(Game(
+            id=game_id,
+            team1=g1["TEAM_ABBREVIATION"],
+            team2=g2["TEAM_ABBREVIATION"],
+            date=g1["GAME_DATE"],
+            time="Final",
+            venue="",
+            is_today=False,
+            season_type="playoffs",
+            score1=int(g1["PTS"]) if g1["PTS"] else None,
+            score2=int(g2["PTS"]) if g2["PTS"] else None,
+        ))
+        count += 1
+    
+    await db.commit()
+    print(f"Загружено {count} игр плей-офф")
+
+
+async def sync_injuries(db: AsyncSession):
+    """Загружает травмы всех игроков из ESPN API"""
+    print("Загрузка данных о травмах из ESPN...")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries",
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                },
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        print(f"Ошибка при загрузке травм: {e}")
+        return
+    
+    athletes = data.get("sports", [{}])[0].get("leagues", [{}])[0].get("athletes", [])
+    
+    # Очищаем старые травмы
+    result = await db.execute(select(Injury))
+    existing = result.scalars().all()
+    for inj in existing:
+        await db.delete(inj)
+    await db.commit()
+    
+    count = 0
+    for entry in athletes:
+        athlete = entry.get("athlete", {})
+        details = entry.get("details", {})
+        notes = entry.get("notes", {})
+        team = athlete.get("team", {})
+        position = athlete.get("position", {})
+        
+        # Статус: Out, Day-To-Day, Questionable, Doubtful
+        status = entry.get("status", "Out")
+        if status == "Out":
+            status = "Out"
+        elif status == "Day-To-Day":
+            status = "Day-to-Day"
+        elif status == "Questionable":
+            status = "Questionable"
+        elif status == "Doubtful":
+            status = "Doubtful"
+        else:
+            status = "Out"
+        
+        # Тип травмы
+        injury_type = details.get("type", "Not Specified")
+        injury_detail = details.get("detail", "")
+        injury_desc = f"{injury_type} {injury_detail}".strip() if injury_detail else injury_type
+        
+        # Комментарий
+        comment = ""
+        items = notes.get("items", [])
+        if items:
+            comment = items[0].get("headline", "")
+        
+        db.add(Injury(
+            team_abbr=team.get("abbreviation", "UNK"),
+            player_name=athlete.get("displayName", "Unknown"),
+            position=position.get("abbreviation", "N/A"),
+            injury=injury_desc,
+            status=status,
+        ))
+        count += 1
+    
+    await db.commit()
+    print(f"Загружено {count} записей о травмах")

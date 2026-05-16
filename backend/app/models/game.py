@@ -8,10 +8,11 @@ class Game(Base):
     id: Mapped[str] = mapped_column(String(20), primary_key=True)
     team1: Mapped[str] = mapped_column(String(5))
     team2: Mapped[str] = mapped_column(String(5))
-    date: Mapped[str] = mapped_column(String(10))   # "2026-05-12"
+    date: Mapped[str] = mapped_column(String(10))
     time: Mapped[str] = mapped_column(String(50))
     venue: Mapped[str] = mapped_column(String(100))
     is_today: Mapped[bool] = mapped_column(Boolean, default=False)
+    season_type: Mapped[str] = mapped_column(String(20), default="regular")  # "regular" or "playoffs"
     win1: Mapped[float] = mapped_column(Float, nullable=True)
     score1: Mapped[int] = mapped_column(Integer, nullable=True)
     score2: Mapped[int] = mapped_column(Integer, nullable=True)

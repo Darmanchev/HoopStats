@@ -17,4 +17,4 @@ async def get_injuries(db: AsyncSession = Depends(get_db)):
 @router.get("/{team_abbr}", response_model=list[InjurySchema])
 async def get_team_injuries(team_abbr: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Injury).where(Injury.team_abbr == team_abbr))
-    return result.scalar_one_or_none()
+    return result.scalars().all()
