@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "basketballstatistics"
 version = "0.1.0"
-description = ""
+description = "NBA statistics tracking and match prediction application"
 package-mode = false
 authors = ["evgeni <darmanchev.evgeni@gmail.com>"]
 

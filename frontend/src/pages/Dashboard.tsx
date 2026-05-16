@@ -1,15 +1,52 @@
-import type { UpcomingGame, Team } from "../types";
+import { useNavigate } from "react-router-dom";
+import { useGames } from "../hooks/useGames";
+import { useTeams } from "../hooks/useTeams";
 import GameCard from "../components/matches/GameCard";
 
-interface Props {
-  games: UpcomingGame[];
-  teams: Record<string, Team>;
-  onSelect: (game: UpcomingGame) => void;
-}
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { upcoming, loading: gamesLoading, error: gamesError } = useGames();
+  const { teams, loading: teamsLoading, error: teamsError } = useTeams();
 
-export default function Dashboard({ games, teams, onSelect }: Props) {
-  const today = games.filter((g) => g.isToday);
-  const upcoming = games.filter((g) => !g.isToday);
+  const today = upcoming.filter((g) => g.isToday);
+  const future = upcoming.filter((g) => !g.isToday);
+
+  if (gamesLoading || teamsLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          fontFamily: "'Barlow Condensed',sans-serif",
+          fontSize: 20,
+          color: "#8A94AE",
+          letterSpacing: 2,
+        }}
+      >
+        LOADING...
+      </div>
+    );
+  }
+
+  if (gamesError || teamsError) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          fontFamily: "'Barlow',sans-serif",
+          fontSize: 16,
+          color: "#C8102E",
+        }}
+      >
+        {gamesError || teamsError}
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "36px 44px", maxWidth: 860, margin: "0 auto" }}>
@@ -44,7 +81,7 @@ export default function Dashboard({ games, teams, onSelect }: Props) {
             game={g}
             team1={teams[g.team1]}
             team2={teams[g.team2]}
-            onClick={onSelect}
+            onClick={() => navigate(`/match/${g.id}`)}
           />
         ))}
       </div>
@@ -63,13 +100,13 @@ export default function Dashboard({ games, teams, onSelect }: Props) {
         Upcoming
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {upcoming.map((g) => (
+        {future.map((g) => (
           <GameCard
             key={g.id}
             game={g}
             team1={teams[g.team1]}
             team2={teams[g.team2]}
-            onClick={onSelect}
+            onClick={() => navigate(`/match/${g.id}`)}
           />
         ))}
       </div>

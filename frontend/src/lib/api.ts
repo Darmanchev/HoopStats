@@ -1,56 +1,60 @@
-import type {
-  HoopData,
-  UpcomingGame,
-  PastGame,
-  Team,
-  TeamDetails,
-  Injury,
-} from "../types";
+import type { TeamStats, UpcomingGame, PastGame, Team, Injury } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// базовая функция для всех запросов
+interface ApiError {
+  status: number;
+  message: string;
+  name: "ApiError";
+}
+
+function createApiError(status: number, message: string): ApiError {
+  return { status, message, name: "ApiError" };
+}
+
 async function fetcher<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${BASE_URL}${endpoint}`);
+  let response: Response;
+
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`);
+  } catch {
+    throw createApiError(0, "Network error — check your connection");
+  }
 
   if (!response.ok) {
-    throw new Error(`Error ${response.status}: ${response.statusText}`);
+    throw createApiError(
+      response.status,
+      `Error ${response.status}: ${response.statusText}`
+    );
   }
 
   return response.json();
 }
 
-// ── Матчи ──────────────────────────────────────────
-
-// все предстоящие матчи
 export async function getUpcomingGames(): Promise<UpcomingGame[]> {
   return fetcher("/games/upcoming");
 }
 
-// матчи сегодня
 export async function getTodayGames(): Promise<UpcomingGame[]> {
   return fetcher("/games/today");
 }
 
-// прошедшие матчи
 export async function getPastGames(): Promise<PastGame[]> {
   return fetcher("/games/past");
 }
 
-// один матч по id
 export async function getMatch(id: string): Promise<UpcomingGame> {
   return fetcher(`/games/${id}`);
 }
 
-// ── Команды ────────────────────────────────────────
-
-// все команды
 export async function getTeams(): Promise<Record<string, Team>> {
   const list = await fetcher<(Team & { abbr: string })[]>("/teams");
   return Object.fromEntries(list.map((t) => [t.abbr, t]));
 }
 
-// --- Injuries
+export async function getTeamStats(abbr: string): Promise<TeamStats> {
+  return fetcher(`/teams/${abbr}/stats`)
+}
 
 export async function getInjuries(): Promise<Injury[]> {
   return fetcher("/injuries/");

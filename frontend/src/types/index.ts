@@ -8,10 +8,12 @@ export interface Team {
   record: string;
 }
 
-// Травма игрока (из TEAM_DETAILS.injuries)
+// Травма игрока (из API /injuries)
 export interface Injury {
-  name: string;
-  pos: string;
+  id: string;
+  teamAbbr: string;
+  playerName: string;
+  position: string;
   injury: string;
   status: "Out" | "Doubtful" | "Questionable" | "Day-to-Day";
 }
@@ -21,6 +23,12 @@ export interface TeamDetails {
   form: ("W" | "L")[];
   lastScores: number[];
   injuries: Injury[];
+}
+
+export interface TeamStats {
+  teamAbbr: string;
+  form: ("W" | "L")[];
+  lastScores: number[];
 }
 
 // Фактор прогноза (из UPCOMING.factors)
@@ -38,12 +46,22 @@ export interface UpcomingGame {
   team2: string;
   isToday: boolean;
   date: string;
-  dateRaw: string;
   time: string;
   venue: string;
+  seasonType: "regular" | "playoffs";
   win1: number;
   prediction: string;
   factors: Factor[];
+}
+
+export interface PastGame {
+  id: string;
+  team1: string;
+  team2: string;
+  date: string;
+  seasonType: "regular" | "playoffs";
+  score1: number;
+  score2: number;
 }
 
 // Прошедший матч (из PAST)
@@ -52,7 +70,6 @@ export interface PastGame {
   team1: string;
   team2: string;
   date: string;
-  dateRaw: string;
   score1: number;
   score2: number;
 }

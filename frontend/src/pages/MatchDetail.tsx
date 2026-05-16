@@ -1,35 +1,105 @@
-import type { UpcomingGame, Team, TeamDetails } from "../types";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import type { UpcomingGame, Team, TeamStats } from "../types";
+import { getMatch, getTeamStats, getTeams } from "../lib/api";
 import TeamLogo from "../components/teams/TeamLogo";
 import WinBar from "../components/matches/WinBar";
-import FactorCard from "../components/predictions/FactorCard";
 import FormBadge from "../components/teams/FormBadge";
 import SparkLine from "../components/teams/SparkLine";
-import StatusPill from "../components/ui/StatusPill";
 
-interface Props {
-  game: UpcomingGame;
-  teams: Record<string, Team>;
-  teamDetails: Record<string, TeamDetails>;
-  onBack: () => void;
-}
+export default function MatchDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [game, setGame] = useState<UpcomingGame | null>(null);
+  const [teams, setTeams] = useState<Record<string, Team>>({});
+  const [stats, setStats] = useState<Record<string, TeamStats>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function MatchDetail({
-  game,
-  teams,
-  teamDetails,
-  onBack,
-}: Props) {
+  useEffect(() => {
+    if (!id) return;
+
+    Promise.all([getMatch(id), getTeams()])
+      .then(([gameData, teamsData]) => {
+        setGame(gameData);
+        setTeams(teamsData);
+        return Promise.all([
+          getTeamStats(gameData.team1),
+          getTeamStats(gameData.team2),
+        ]);
+      })
+      .then(([s1, s2]) => {
+        if (game) {
+          setStats({ [game.team1]: s1, [game.team2]: s2 });
+        }
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          fontFamily: "'Barlow Condensed',sans-serif",
+          fontSize: 20,
+          color: "#8A94AE",
+          letterSpacing: 2,
+        }}
+      >
+        LOADING...
+      </div>
+    );
+  }
+
+  if (error || !game) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          fontFamily: "'Barlow',sans-serif",
+        }}
+      >
+        <div style={{ fontSize: 16, color: "#C8102E" }}>{error || "Game not found"}</div>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            marginTop: 24,
+            padding: "10px 24px",
+            background: "oklch(0.62 0.18 25)",
+            color: "#fff",
+            borderRadius: 8,
+            border: "none",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   const t1 = teams[game.team1];
   const t2 = teams[game.team2];
-  const d1 = teamDetails[game.team1];
-  const d2 = teamDetails[game.team2];
-  const fav = game.win1 >= 50 ? t1 : t2;
-  const favPct = game.win1 >= 50 ? game.win1 : 100 - game.win1;
+  const win1 = game.win1 ?? 50;
+  const fav = win1 >= 50 ? t1 : t2;
+  const favPct = win1 >= 50 ? win1 : 100 - win1;
+
+  if (!t1 || !t2) return null;
 
   return (
     <div style={{ padding: "32px 44px", maxWidth: 880, margin: "0 auto" }}>
       <button
-        onClick={onBack}
+        onClick={() => navigate("/")}
         style={{
           background: "none",
           border: "none",
@@ -58,7 +128,6 @@ export default function MatchDetail({
         Back to Dashboard
       </button>
 
-      {/* Шапка матча */}
       <div
         style={{
           background: "#FFFFFF",
@@ -153,82 +222,60 @@ export default function MatchDetail({
             </div>
           </div>
         </div>
-        <WinBar pct1={game.win1} team1={t1} team2={t2} />
+        <WinBar pct1={win1} team1={t1} team2={t2} />
       </div>
 
-      {/* Прогноз */}
-      <div
-        style={{
-          background: "oklch(0.94 0.015 225)",
-          border: "1px solid oklch(0.20 0.05 225)",
-          borderRadius: 12,
-          padding: "20px 26px",
-          marginBottom: 20,
-        }}
-      >
+      {game.prediction && (
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 12,
+            background: "oklch(0.94 0.015 225)",
+            border: "1px solid oklch(0.20 0.05 225)",
+            borderRadius: 12,
+            padding: "20px 26px",
+            marginBottom: 20,
           }}
         >
           <div
             style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "oklch(0.62 0.18 225)",
-            }}
-          />
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1.5,
-              color: "oklch(0.62 0.18 225)",
-              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 12,
             }}
           >
-            Prediction · {fav.name} favored at {favPct}%
-          </span>
+            <div
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "oklch(0.62 0.18 225)",
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 1.5,
+                color: "oklch(0.62 0.18 225)",
+                textTransform: "uppercase",
+              }}
+            >
+              Prediction · {fav.name} favored at {favPct}%
+            </span>
+          </div>
+          <p
+            style={{
+              fontSize: 14,
+              color: "#4A6080",
+              lineHeight: 1.7,
+              margin: 0,
+            }}
+          >
+            {game.prediction}
+          </p>
         </div>
-        <p
-          style={{ fontSize: 14, color: "#4A6080", lineHeight: 1.7, margin: 0 }}
-        >
-          {game.prediction}
-        </p>
-      </div>
+      )}
 
-      {/* Ключевые факторы */}
-      <div style={{ marginBottom: 20 }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 1.5,
-            color: "#8A94AE",
-            textTransform: "uppercase",
-            marginBottom: 14,
-          }}
-        >
-          Key Factors
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 10,
-          }}
-        >
-          {game.factors.map((f, i) => (
-            <FactorCard key={i} factor={f} team1={t1} team2={t2} />
-          ))}
-        </div>
-      </div>
-
-      {/* Форма и спарклайн */}
       <div
         style={{
           display: "grid",
@@ -237,161 +284,81 @@ export default function MatchDetail({
           marginBottom: 20,
         }}
       >
-        {(
-          [
-            [game.team1, t1, d1],
-            [game.team2, t2, d2],
-          ] as const
-        ).map(([abbr, t, d]) => (
-          <div
-            key={abbr}
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid #1C2235",
-              borderRadius: 12,
-              padding: "20px 22px",
-            }}
-          >
+        {([game.team1, game.team2] as const).map((abbr) => {
+          const t = teams[abbr];
+          const s = stats[abbr];
+          return (
             <div
+              key={abbr}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 14,
+                background: "#FFFFFF",
+                border: "1px solid #1C2235",
+                borderRadius: 12,
+                padding: "20px 22px",
               }}
             >
-              <span
-                style={{
-                  fontFamily: "'Barlow Condensed',sans-serif",
-                  fontWeight: 700,
-                  fontSize: 15,
-                  color: t.accent,
-                }}
-              >
-                {t.city} {t.name}
-              </span>
-              <span
-                style={{
-                  fontSize: 10,
-                  letterSpacing: 1.2,
-                  color: "#8A94AE",
-                  fontWeight: 700,
-                }}
-              >
-                LAST 5
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
-              {d.form.map((r, i) => (
-                <FormBadge key={i} r={r} />
-              ))}
-            </div>
-            <div
-              style={{
-                fontSize: 10,
-                letterSpacing: 1.2,
-                color: "#8A94AE",
-                fontWeight: 700,
-                marginBottom: 8,
-              }}
-            >
-              PTS — LAST 10 GAMES
-            </div>
-            <SparkLine
-              data={d.lastScores}
-              color={t.accent}
-              width={210}
-              height={52}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Травмы */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #1C2235",
-          borderRadius: 12,
-          padding: "20px 26px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 1.5,
-            color: "#8A94AE",
-            textTransform: "uppercase",
-            marginBottom: 18,
-          }}
-        >
-          Injury Report
-        </div>
-        <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}
-        >
-          {(
-            [
-              [game.team1, t1, d1],
-              [game.team2, t2, d2],
-            ] as const
-          ).map(([abbr, t, d]) => (
-            <div key={abbr}>
               <div
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: t.accent,
-                  marginBottom: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 14,
                 }}
               >
-                {t.city} {t.name}
-              </div>
-              {d.injuries.length === 0 ? (
-                <div
+                <span
                   style={{
-                    fontSize: 13,
-                    color: "#8A94AE",
-                    fontStyle: "italic",
+                    fontFamily: "'Barlow Condensed',sans-serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    color: t.accent,
                   }}
                 >
-                  No injuries reported
-                </div>
-              ) : (
-                d.injuries.map((inj, i) => (
+                  {t.city} {t.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                    color: "#8A94AE",
+                    fontWeight: 700,
+                  }}
+                >
+                  LAST 5
+                </span>
+              </div>
+              {s ? (
+                <>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+                    {s.form.map((r, i) => (
+                      <FormBadge key={i} r={r as "W" | "L"} />
+                    ))}
+                  </div>
                   <div
-                    key={i}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingBottom: 12,
-                      marginBottom: 12,
-                      borderBottom: "1px solid #181E2C",
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                      color: "#8A94AE",
+                      fontWeight: 700,
+                      marginBottom: 8,
                     }}
                   >
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          marginBottom: 3,
-                        }}
-                      >
-                        {inj.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#6B7590" }}>
-                        {inj.pos} · {inj.injury}
-                      </div>
-                    </div>
-                    <StatusPill status={inj.status} />
+                    PTS — LAST 10 GAMES
                   </div>
-                ))
+                  <SparkLine
+                    data={s.lastScores}
+                    color={t.accent}
+                    width={210}
+                    height={52}
+                  />
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: "#8A94AE" }}>
+                  Loading...
+                </div>
               )}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import time
+import asyncio
 import httpx
 from datetime import datetime
 from nba_api.stats.static import teams as nba_teams
@@ -91,18 +91,25 @@ TEAM_COLORS = {
 async def sync_teams(db: AsyncSession):
     """Загружает все команды из NBA API в базу"""
     all_teams = nba_teams.get_teams()
+    print(f"NBA API вернул {len(all_teams)} команд")
 
     # получаем рекорды из standings
-    standings = leaguestandings.LeagueStandings(season="2025-26")
-    data = standings.get_dict()
-    headers = data["resultSets"][0]["headers"]
-    rows = data["resultSets"][0]["rowSet"]
+    try:
+        standings = leaguestandings.LeagueStandings(season="2025")
+        data = standings.get_dict()
+        headers = data["resultSets"][0]["headers"]
+        rows = data["resultSets"][0]["rowSet"]
+        print(f"Standings: {len(rows)} команд")
+    except Exception as e:
+        print(f"Ошибка при загрузке standings: {e}")
+        rows = []
 
     records = {}
     for row in rows:
         s = dict(zip(headers, row))
         records[int(s["TeamID"])] = f"{s.get('WINS', 0)}-{s.get('LOSSES', 0)}"
 
+    count = 0
     for t in all_teams:
         abbr = t["abbreviation"]
         colors = TEAM_COLORS.get(abbr, {"color": "#000000", "accent": "#FFFFFF"})
@@ -121,12 +128,13 @@ async def sync_teams(db: AsyncSession):
                 accent=colors["accent"],
                 record=record,
             ))
+            count += 1
         else:
             team.record = record
             team.nba_id = t["id"]
 
     await db.commit()
-    print(f"Синхронизировано {len(all_teams)} команд")
+    print(f"Синхронизировано {len(all_teams)} команд ({count} новых)")
 
 async def sync_games(db: AsyncSession):
     """Загружает живые игры сегодня"""
@@ -181,10 +189,10 @@ async def sync_games(db: AsyncSession):
 async def get_team_form(team_id: int) -> dict:
     """Возвращает форму команды и последние счета"""
     # небольшая пауза чтобы не попасть под rate limit
-    time.sleep(0.6)
+    await asyncio.sleep(0.6)
     log = teamgamelog.TeamGameLog(
         team_id=str(team_id),
-        season="2024-25"
+        season="2025"
     )
     data = log.get_dict()
     headers = data["resultSets"][0]["headers"]
@@ -206,20 +214,35 @@ async def sync_team_stats(db: AsyncSession):
     """Загружает форму и последние счета для всех команд"""
     result = await db.execute(select(Team))
     teams = result.scalars().all()
+    print(f"Загрузка статистики для {len(teams)} команд...")
+
+    success_count = 0
+    error_count = 0
 
     for team in teams:
         if not team.nba_id:
             continue
 
         try:
-            time.sleep(0.6)  # rate limit
+            await asyncio.sleep(1.0)  # rate limit — увеличена пауза
             log = teamgamelog.TeamGameLog(
                 team_id=str(team.nba_id),
-                season="2025-26",
+                season="2025",
             )
             data = log.get_dict()
-            headers = data["resultSets"][0]["headers"]
-            rows = data["resultSets"][0]["rowSet"][:10]
+            result_sets = data.get("resultSets", [])
+            if not result_sets:
+                print(f"{team.abbr}: нет данных в response")
+                error_count += 1
+                continue
+            
+            headers = result_sets[0].get("headers", [])
+            rows = result_sets[0].get("rowSet", [])[:10]
+            
+            if not rows:
+                print(f"{team.abbr}: нет игр в логе")
+                error_count += 1
+                continue
 
             form = []
             scores = []
@@ -243,27 +266,52 @@ async def sync_team_stats(db: AsyncSession):
                 stats.form = form[:5]
                 stats.last_scores = scores
 
-            print(f"{team.abbr} — {form[:5]}")
+            success_count += 1
 
         except Exception as e:
-            print(f"Ошибка {team.abbr}: {e}")
+            error_count += 1
+            if error_count <= 3:
+                print(f"Ошибка {team.abbr}: {type(e).__name__}: {e}")
 
     await db.commit()
-    print("Статистика команд синхронизирована")
+    print(f"Статистика команд синхронизирована: {success_count} успешно, {error_count} ошибок")
 
 
-async def sync_historical_games(db: AsyncSession, season: str = "2025-26"):
-    """Загружает все игры сезона (regular + playoffs)"""
+async def sync_historical_games(db: AsyncSession, season: str = "2025"):
+    """Загружает все игры сезона (regular + playoffs)
+    
+    NBA API использует формат года начала сезона:
+    - "2025" = сезон 2025-26
+    - "2024" = сезон 2024-25
+    """
     print(f"Загрузка игр сезона {season}...")
     
     # Загружаем регулярный сезон
-    finder = leaguegamefinder.LeagueGameFinder(
-        season_nullable=season,
-        season_type_nullable="Regular Season",
-    )
-    data = finder.get_dict()
-    headers = data["resultSets"][0]["headers"]
-    rows = data["resultSets"][0]["rowSet"]
+    try:
+        await asyncio.sleep(1.0)
+        finder = leaguegamefinder.LeagueGameFinder(
+            season_nullable=season,
+            season_type_nullable="Regular Season",
+        )
+        data = finder.get_dict()
+    except Exception as e:
+        print(f"Ошибка при запросе регулярного сезона: {type(e).__name__}: {e}")
+        return
+    
+    result_sets = data.get("resultSets", [])
+    if not result_sets:
+        print(f"NBA API вернул пустой response для сезона {season}")
+        print(f"Response keys: {list(data.keys())}")
+        print(f"Response preview: {str(data)[:300]}")
+        return
+    
+    headers = result_sets[0].get("headers", [])
+    rows = result_sets[0].get("rowSet", [])
+    print(f"NBA API вернул {len(rows)} записей (регулярный сезон)")
+    
+    if not rows:
+        print(f"Нет данных для сезона {season}. Попробуйте другой год (2024, 2023...)")
+        return
 
     # каждая игра есть дважды (за каждую команду) — берём уникальные
     seen = set()
@@ -319,17 +367,24 @@ async def _sync_playoffs(db: AsyncSession, season: str):
             season_nullable=season,
             season_type_nullable="Playoffs",
         )
-    except Exception:
-        print("Плей-офф ещё не начался или данные недоступны")
+        data = finder.get_dict()
+    except Exception as e:
+        print(f"Плей-офф ещё не начался или данные недоступны: {e}")
         return
     
-    data = finder.get_dict()
-    if not data.get("resultSets") or not data["resultSets"][0].get("rowSet"):
-        print("Игр плей-офф не найдено")
+    result_sets = data.get("resultSets", [])
+    if not result_sets:
+        print("Игр плей-офф не найдено (пустой response)")
         return
     
-    headers = data["resultSets"][0]["headers"]
-    rows = data["resultSets"][0]["rowSet"]
+    rows = result_sets[0].get("rowSet", [])
+    if not rows:
+        print("Игр плей-офф не найдено (пустой rowSet)")
+        return
+    
+    print(f"NBA API вернул {len(rows)} записей (плей-офф)")
+    
+    headers = result_sets[0].get("headers", [])
     
     seen = set()
     count = 0
@@ -372,7 +427,15 @@ async def _sync_playoffs(db: AsyncSession, season: str):
 
 
 async def sync_injuries(db: AsyncSession):
-    """Загружает травмы всех игроков из ESPN API"""
+    """Загружает травмы всех игроков из ESPN API
+    
+    Структура ESPN:
+    {"injuries": [
+      {"displayName": "Atlanta Hawks", "injuries": [
+        {"status": "Out", "athlete": {"displayName": "Keshon Gilbert", "position": {"abbreviation": "G"}}, ...}
+      ]}
+    ]}
+    """
     print("Загрузка данных о травмах из ESPN...")
     
     try:
@@ -386,11 +449,19 @@ async def sync_injuries(db: AsyncSession):
             )
             resp.raise_for_status()
             data = resp.json()
+    except httpx.HTTPStatusError as e:
+        print(f"HTTP ошибка при загрузке травм: {e.response.status_code} - {e.response.text[:200]}")
+        return
     except Exception as e:
-        print(f"Ошибка при загрузке травм: {e}")
+        print(f"Ошибка при загрузке травм: {type(e).__name__}: {e}")
         return
     
-    athletes = data.get("sports", [{}])[0].get("leagues", [{}])[0].get("athletes", [])
+    teams_injuries = data.get("injuries", [])
+    if not teams_injuries:
+        print(f"Травм не найдено. Response keys: {list(data.keys())}")
+        return
+    
+    print(f"ESPN вернул {len(teams_injuries)} команд с травмами")
     
     # Очищаем старые травмы
     result = await db.execute(select(Injury))
@@ -399,46 +470,55 @@ async def sync_injuries(db: AsyncSession):
         await db.delete(inj)
     await db.commit()
     
+    # Маппинг названий команд в аббревиатуры
+    TEAM_NAME_TO_ABBR = {
+        "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
+        "Charlotte Hornets": "CHA", "Chicago Bulls": "CHI", "Cleveland Cavaliers": "CLE",
+        "Dallas Mavericks": "DAL", "Denver Nuggets": "DEN", "Detroit Pistons": "DET",
+        "Golden State Warriors": "GSW", "Houston Rockets": "HOU", "Indiana Pacers": "IND",
+        "LA Clippers": "LAC", "Los Angeles Lakers": "LAL", "Memphis Grizzlies": "MEM",
+        "Miami Heat": "MIA", "Milwaukee Bucks": "MIL", "Minnesota Timberwolves": "MIN",
+        "New Orleans Pelicans": "NOP", "New York Knicks": "NYK", "Oklahoma City Thunder": "OKC",
+        "Orlando Magic": "ORL", "Philadelphia 76ers": "PHI", "Phoenix Suns": "PHX",
+        "Portland Trail Blazers": "POR", "Sacramento Kings": "SAC", "San Antonio Spurs": "SAS",
+        "Toronto Raptors": "TOR", "Utah Jazz": "UTA", "Washington Wizards": "WAS",
+    }
+    
     count = 0
-    for entry in athletes:
-        athlete = entry.get("athlete", {})
-        details = entry.get("details", {})
-        notes = entry.get("notes", {})
-        team = athlete.get("team", {})
-        position = athlete.get("position", {})
+    for team_entry in teams_injuries:
+        team_name = team_entry.get("displayName", "")
+        team_abbr = TEAM_NAME_TO_ABBR.get(team_name, "UNK")
+        injuries = team_entry.get("injuries", [])
         
-        # Статус: Out, Day-To-Day, Questionable, Doubtful
-        status = entry.get("status", "Out")
-        if status == "Out":
-            status = "Out"
-        elif status == "Day-To-Day":
-            status = "Day-to-Day"
-        elif status == "Questionable":
-            status = "Questionable"
-        elif status == "Doubtful":
-            status = "Doubtful"
-        else:
-            status = "Out"
-        
-        # Тип травмы
-        injury_type = details.get("type", "Not Specified")
-        injury_detail = details.get("detail", "")
-        injury_desc = f"{injury_type} {injury_detail}".strip() if injury_detail else injury_type
-        
-        # Комментарий
-        comment = ""
-        items = notes.get("items", [])
-        if items:
-            comment = items[0].get("headline", "")
-        
-        db.add(Injury(
-            team_abbr=team.get("abbreviation", "UNK"),
-            player_name=athlete.get("displayName", "Unknown"),
-            position=position.get("abbreviation", "N/A"),
-            injury=injury_desc,
-            status=status,
-        ))
-        count += 1
+        for inj in injuries:
+            athlete = inj.get("athlete", {})
+            details = inj.get("details", {})
+            
+            status = inj.get("status", "Out")
+            if status == "Day-To-Day":
+                status = "Day-to-Day"
+            elif status not in ("Out", "Questionable", "Doubtful"):
+                status = "Out"
+            
+            injury_type = details.get("type", "Not Specified")
+            injury_detail = details.get("detail", "")
+            injury_desc = f"{injury_type} {injury_detail}".strip() if injury_detail else injury_type
+            
+            player_name = athlete.get("displayName", "Unknown")
+            position = athlete.get("position", {})
+            pos_abbr = position.get("abbreviation", "N/A")
+            
+            try:
+                db.add(Injury(
+                    team_abbr=team_abbr,
+                    player_name=player_name,
+                    position=pos_abbr,
+                    injury=injury_desc[:100],
+                    status=status,
+                ))
+                count += 1
+            except Exception as e:
+                print(f"Ошибка при сохранении {player_name}: {e}")
     
     await db.commit()
     print(f"Загружено {count} записей о травмах")

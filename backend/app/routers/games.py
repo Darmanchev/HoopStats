@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from ..database import get_db
 from ..schemas.game import PastGameSchema, UpcomingGameSchema, GameBase
@@ -20,8 +20,18 @@ async def get_today(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 @router.get("/past", response_model=list[PastGameSchema])
-async def get_past(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Game).where(Game.score1 != None))
+async def get_past(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Game)
+        .where(Game.score1 != None)
+        .order_by(Game.date.desc())
+        .offset(skip)
+        .limit(limit)
+    )
     return result.scalars().all()
 
 @router.get("/{id}", response_model=GameBase)

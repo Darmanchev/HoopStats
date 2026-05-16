@@ -1,19 +1,13 @@
-import type { ReactNode } from 'react'
-import Sidebar from './Sidebar'
+import { Outlet } from "react-router-dom";
+import Sidebar from "./Sidebar";
 
-interface Props {
-  active: string
-  onNavigate: (view: string) => void
-  children: ReactNode
-}
-
-export default function Layout({ active, onNavigate, children }: Props) {
+export default function Layout() {
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F4F6FC', color: '#1C2235' }}>
-      <Sidebar active={active} onNavigate={onNavigate} />
-      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>
-        {children}
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#F4F6FC", color: "#1C2235" }}>
+      <Sidebar />
+      <main style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
+        <Outlet />
       </main>
     </div>
-  )
+  );
 }

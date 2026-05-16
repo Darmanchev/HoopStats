@@ -4,7 +4,7 @@ from .base import CamelModel
 
 
 class InjurySchema(CamelModel):
-    id: str
+    id: int
     team_abbr: str
     player_name: str
     position: str
@@ -35,6 +35,6 @@ class InjurySchema(CamelModel):
     @field_validator("injury")
     @classmethod
     def validate_injury(cls, v: str) -> str:
-        if not v or len(v) > 100:
-            raise ValueError("Injury description must be 1-100 characters")
+        if len(v) > 100:
+            raise ValueError("Injury description must be under 100 characters")
         return v

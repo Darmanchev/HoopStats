@@ -39,6 +39,24 @@ export default function ScheduleRow({
         {game.date}
       </div>
 
+      {game.seasonType === "playoffs" && (
+        <span
+          style={{
+            padding: "2px 6px",
+            borderRadius: 4,
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: 0.5,
+            background: "#FEF3C7",
+            color: "#92400E",
+            textTransform: "uppercase",
+            flexShrink: 0,
+          }}
+        >
+          PO
+        </span>
+      )}
+
       <div
         style={{
           flex: 1,
