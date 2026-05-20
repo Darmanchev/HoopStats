@@ -6,6 +6,7 @@ from app.services.nba_service import (
     sync_team_stats,
     sync_historical_games,
     sync_injuries,
+    sync_players,
 )
 
 
@@ -22,6 +23,9 @@ async def main():
 
         print("\n=== Syncing historical games ===")
         await sync_historical_games(db)
+
+        print("\n=== Syncing players ===")
+        await sync_players(db)
 
         print("\n=== Syncing injuries ===")
         await sync_injuries(db)

@@ -54,6 +54,7 @@ export interface UpcomingGame {
   factors: Factor[];
 }
 
+// Прошедший матч (из PAST)
 export interface PastGame {
   id: string;
   team1: string;
@@ -64,14 +65,31 @@ export interface PastGame {
   score2: number;
 }
 
-// Прошедший матч (из PAST)
-export interface PastGame {
-  id: string;
-  team1: string;
-  team2: string;
-  date: string;
-  score1: number;
-  score2: number;
+export interface Player {
+  id: number;
+  nbaId: number;
+  name: string;
+  teamAbbr: string;
+  position: string;
+  jerseyNumber: string | null;
+  gamesPlayed: number;
+  pts: number;
+  reb: number;
+  ast: number;
+  stl: number;
+  blk: number;
+  fgPct: number;
+  fg3Pct: number;
+  ftPct: number;
+  mins: number;
+  recentGames: number;
+}
+
+export interface PlayerDetail extends Player {
+  teamName: string | null;
+  teamCity: string | null;
+  teamColor: string | null;
+  teamAccent: string | null;
 }
 
 // Объединённый тип для Schedule (где матч может быть любым)

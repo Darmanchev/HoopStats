@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import teams, games, injuries
+from .routers import teams, games, injuries, players
 
 app = FastAPI(title="HoopStats API")
 
@@ -14,6 +14,7 @@ app.add_middleware(
 app.include_router(teams.router)
 app.include_router(games.router)
 app.include_router(injuries.router)
+app.include_router(players.router)
 
 @app.get("/health")
 async def health():

@@ -1,15 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
+from sqlalchemy.orm import selectinload  # ← НОВОЕ
 from ..database import get_db
 from ..models.team import Team
-from ..schemas.team import TeamSchema
+from ..schemas.team import TeamSchema, TeamDetailSchema  # ← добавляем TeamDetailSchema
 from ..models.team_stats import TeamStats
 from ..schemas.team_stats import TeamStatsSchema
-
 router = APIRouter(prefix="/teams", tags=["teams"])
-
 @router.get("/", response_model=list[TeamSchema])
 async def get_teams(
     skip: int = Query(0, ge=0),
@@ -20,12 +18,26 @@ async def get_teams(
         select(Team).order_by(Team.abbr).offset(skip).limit(limit)
     )
     return result.scalars().all()
-
-@router.get("/{abbr}", response_model=TeamSchema)
+@router.get("/{abbr}", response_model=TeamDetailSchema)
 async def get_team(abbr: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Team).where(Team.abbr == abbr))
-    return result.scalar_one_or_none()
-
+    result = await db.execute(
+        select(Team)
+        .options(selectinload(Team.stats))
+        .where(Team.abbr == abbr)
+    )
+    team = result.scalar_one_or_none()
+    if not team:
+        return None
+    return TeamDetailSchema(
+        abbr=team.abbr,
+        name=team.name,
+        city=team.city,
+        color=team.color,
+        accent=team.accent,
+        record=team.record,
+        stats=team.stats,
+        players_count=len(team.players) if team.players else 0, 
+    )
 @router.get("/{abbr}/stats", response_model=TeamStatsSchema)
 async def get_team_stats(abbr: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(

@@ -1,7 +1,8 @@
+from typing import Optional 
 from datetime import date
 from pydantic import field_validator
 from .base import CamelModel
-
+from .team import TeamSchema
 
 class GameBase(CamelModel):
     id: str
@@ -38,21 +39,21 @@ class UpcomingGameSchema(GameBase):
     is_today: bool
     win1: float | None = None
     prediction: str | None = None
-
+    # НОВЫЕ ПОЛЯ
+    home_team: Optional[TeamSchema] = None
+    away_team: Optional[TeamSchema] = None
     @field_validator("win1")
     @classmethod
     def validate_win_probability(cls, v: float | None) -> float | None:
         if v is not None and not (0 <= v <= 100):
             raise ValueError("Win probability must be between 0 and 100")
         return v
-
     @field_validator("prediction")
     @classmethod
     def validate_prediction(cls, v: str | None) -> str | None:
         if v is not None and len(v) > 1000:
             raise ValueError("Prediction must be under 1000 characters")
         return v
-
 
 class PastGameSchema(GameBase):
     score1: int

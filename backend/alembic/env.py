@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 from app.config import settings
 from app.database import Base
-from app.models import Team, Game, Injury
+from app.models import Team, Game, Injury, TeamStats, Player
 
 config = context.config
 fileConfig(config.config_file_name)

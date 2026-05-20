@@ -1,6 +1,7 @@
 from pydantic import field_validator
 from .base import CamelModel
-
+from typing import Optional
+from .team_stats import TeamStatsSchema
 
 class TeamSchema(CamelModel):
     abbr: str
@@ -31,3 +32,7 @@ class TeamSchema(CamelModel):
         if len(parts) != 2 or not all(p.isdigit() for p in parts):
             raise ValueError("Record must be in 'W-L' format (e.g. '52-28')")
         return v
+
+class TeamDetailSchema(TeamSchema):
+    stats: Optional[TeamStatsSchema] = None
+    players_count: int = 0

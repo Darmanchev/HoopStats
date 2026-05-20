@@ -1,13 +1,13 @@
-from sqlalchemy import String, Integer, Float, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Integer, Float, Boolean, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 class Game(Base):
     __tablename__ = "games"
 
     id: Mapped[str] = mapped_column(String(20), primary_key=True)
-    team1: Mapped[str] = mapped_column(String(5))
-    team2: Mapped[str] = mapped_column(String(5))
+    team1: Mapped[str | None] = mapped_column(String(5), ForeignKey("teams.abbr", ondelete="SET NULL"), nullable=True)
+    team2: Mapped[str | None] = mapped_column(String(5), ForeignKey("teams.abbr", ondelete="SET NULL"), nullable=True)
     date: Mapped[str] = mapped_column(String(10))
     time: Mapped[str] = mapped_column(String(50))
     venue: Mapped[str] = mapped_column(String(100))
@@ -17,3 +17,7 @@ class Game(Base):
     score1: Mapped[int] = mapped_column(Integer, nullable=True)
     score2: Mapped[int] = mapped_column(Integer, nullable=True)
     prediction: Mapped[str] = mapped_column(String(1000), nullable=True)
+
+# relationship
+    home_team = relationship("Team", back_populates="home_games", foreign_keys=[team1])
+    away_team = relationship("Team", back_populates="away_games", foreign_keys=[team2])

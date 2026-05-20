@@ -6,12 +6,15 @@ from nba_api.live.nba.endpoints import scoreboard
 from nba_api.stats.endpoints import teamgamelog
 from nba_api.stats.endpoints import leaguestandings
 from nba_api.stats.endpoints import leaguegamefinder
+from nba_api.stats.endpoints import leaguedashplayerstats
+from nba_api.stats.endpoints import commonplayerinfo
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models.team_stats import TeamStats
 from ..models.team import Team
 from ..models.game import Game
 from ..models.injury import Injury
+from ..models.player import Player
 
 
 def determine_season_type(date_str: str) -> str:
@@ -522,3 +525,132 @@ async def sync_injuries(db: AsyncSession):
     
     await db.commit()
     print(f"Загружено {count} записей о травмах")
+
+
+async def sync_players(db: AsyncSession, season: str = "2025"):
+    """Загружает игроков и их статистику из NBA API
+    
+    Использует PlayerStats endpoint для получения агрегированной
+    статистики всех игроков за сезон.
+    """
+    print(f"Загрузка статистики игроков сезона {season}...")
+    
+    try:
+        await asyncio.sleep(1.0)
+        stats = leaguedashplayerstats.LeagueDashPlayerStats(
+            season=season,
+            season_type="Regular Season",
+            per_mode="PerGame",
+        )
+        data = stats.get_dict()
+    except Exception as e:
+        print(f"Ошибка при загрузке статистики игроков: {type(e).__name__}: {e}")
+        return
+    
+    result_sets = data.get("resultSets", [])
+    if not result_sets:
+        print("NBA API вернул пустой response для статистики игроков")
+        return
+    
+    headers = result_sets[0].get("headers", [])
+    rows = result_sets[0].get("rowSet", [])
+    print(f"NBA API вернул {len(rows)} записей игроков")
+    
+    if not rows:
+        print("Нет данных об игроках")
+        return
+    
+    # Маппинг аббревиатур команд
+    TEAM_ABBR_MAP = {
+        "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
+        "Charlotte Hornets": "CHA", "Chicago Bulls": "CHI", "Cleveland Cavaliers": "CLE",
+        "Dallas Mavericks": "DAL", "Denver Nuggets": "DEN", "Detroit Pistons": "DET",
+        "Golden State Warriors": "GSW", "Houston Rockets": "HOU", "Indiana Pacers": "IND",
+        "LA Clippers": "LAC", "Los Angeles Lakers": "LAL", "Memphis Grizzlies": "MEM",
+        "Miami Heat": "MIA", "Milwaukee Bucks": "MIL", "Minnesota Timberwolves": "MIN",
+        "New Orleans Pelicans": "NOP", "New York Knicks": "NYK", "Oklahoma City Thunder": "OKC",
+        "Orlando Magic": "ORL", "Philadelphia 76ers": "PHI", "Phoenix Suns": "PHX",
+        "Portland Trail Blazers": "POR", "Sacramento Kings": "SAC", "San Antonio Spurs": "SAS",
+        "Toronto Raptors": "TOR", "Utah Jazz": "UTA", "Washington Wizards": "WAS",
+        "Team A": "TMA", "Team B": "TMB",
+    }
+    
+    count_new = 0
+    count_updated = 0
+    
+    for row in rows:
+        player_data = dict(zip(headers, row))
+        
+        player_id = player_data.get("PLAYER_ID")
+        if not player_id:
+            continue
+        
+        team_name = player_data.get("TEAM_NAME", "")
+        team_abbr = TEAM_ABBR_MAP.get(team_name, player_data.get("TEAM_ABBREVIATION", "UNK"))
+        
+        position = player_data.get("POSITION", "")
+        if not position or position == "":
+            position = "N/A"
+        
+        games_played = int(player_data.get("GP", 0))
+        if games_played == 0:
+            continue
+        
+        try:
+            pts = float(player_data.get("PTS", 0))
+            reb = float(player_data.get("REB", 0))
+            ast = float(player_data.get("AST", 0))
+            stl = float(player_data.get("STL", 0))
+            blk = float(player_data.get("BLK", 0))
+            fg_pct = float(player_data.get("FG_PCT", 0)) if player_data.get("FG_PCT") else 0.0
+            fg3_pct = float(player_data.get("FG3_PCT", 0)) if player_data.get("FG3_PCT") else 0.0
+            ft_pct = float(player_data.get("FT_PCT", 0)) if player_data.get("FT_PCT") else 0.0
+            mins = float(player_data.get("MIN", 0)) if player_data.get("MIN") else 0.0
+        except (ValueError, TypeError):
+            continue
+        
+        name = player_data.get("PLAYER_NAME", "Unknown")
+        jersey = str(player_data.get("JERSEY_NUMBER", "")) if player_data.get("JERSEY_NUMBER") else None
+        
+        existing = await db.execute(select(Player).where(Player.nba_id == int(player_id)))
+        player = existing.scalar_one_or_none()
+        
+        if not player:
+            db.add(Player(
+                nba_id=int(player_id),
+                name=name,
+                team_abbr=team_abbr,
+                position=position,
+                jersey_number=jersey,
+                games_played=games_played,
+                pts=pts,
+                reb=reb,
+                ast=ast,
+                stl=stl,
+                blk=blk,
+                fg_pct=fg_pct,
+                fg3_pct=fg3_pct,
+                ft_pct=ft_pct,
+                mins=mins,
+                recent_games=games_played,
+            ))
+            count_new += 1
+        else:
+            player.team_abbr = team_abbr
+            player.position = position
+            player.jersey_number = jersey
+            player.games_played = games_played
+            player.pts = pts
+            player.reb = reb
+            player.ast = ast
+            player.stl = stl
+            player.blk = blk
+            player.fg_pct = fg_pct
+            player.fg3_pct = fg3_pct
+            player.ft_pct = ft_pct
+            player.mins = mins
+            player.recent_games = games_played
+            count_updated += 1
+    
+    await db.commit()
+    print(f"Игроки синхронизированы: {count_new} новых, {count_updated} обновлено")

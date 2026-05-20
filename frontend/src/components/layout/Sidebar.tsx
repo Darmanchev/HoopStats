@@ -10,7 +10,7 @@ const nav = [
   {
     id: "schedule",
     label: "Schedule",
-    icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z",
     to: "/schedule",
   },
   {
@@ -20,6 +20,12 @@ const nav = [
     to: "/teams",
   },
   {
+    id: "players",
+    label: "Players",
+    icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    to: "/players",
+  },
+  {
     id: "injuries",
     label: "Injuries",
     icon: "M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
@@ -27,7 +33,7 @@ const nav = [
   },
 ];
 
-const soon = ["Players", "Analytics"];
+const soon = ["Analytics"];
 
 export default function Sidebar() {
   return (

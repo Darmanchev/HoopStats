@@ -1,5 +1,5 @@
 from sqlalchemy import String, Integer
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 class Team(Base):
@@ -12,3 +12,11 @@ class Team(Base):
     color: Mapped[str] = mapped_column(String(10))
     accent: Mapped[str] = mapped_column(String(10))
     record: Mapped[str] = mapped_column(String(10))
+
+# relationships
+
+    players = relationship("Player", back_populates="team")
+    stats = relationship("TeamStats", back_populates="team", uselist=False)
+    home_games = relationship("Game", back_populates="home_team", foreign_keys="[Game.team1]")
+    away_games = relationship("Game", back_populates="away_team", foreign_keys="[Game.team2]")
+    injuries = relationship("Injury", back_populates="team")
