@@ -1,83 +1,39 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import type { PlayerDetail } from "../types";
-import { getPlayer, getTeams } from "../lib/api";
 import TeamLogo from "../components/teams/TeamLogo";
+import { LoadingState } from "../components/ui/PageState";
+import { usePlayerDetail } from "../hooks/usePlayerDetail";
 
 const statCategories = [
-  { key: "pts", label: "Points", sub: "PPG", color: "#C8102E" },
-  { key: "reb", label: "Rebounds", sub: "RPG", color: "#1E40AF" },
-  { key: "ast", label: "Assists", sub: "APG", color: "#059669" },
-  { key: "stl", label: "Steals", sub: "SPG", color: "#92400E" },
-  { key: "blk", label: "Blocks", sub: "BPG", color: "#5B21B6" },
-  { key: "mins", label: "Minutes", sub: "MPG", color: "#4A7FD4" },
+  { key: "pts",  label: "Points",   sub: "PPG", color: "#C8102E" },
+  { key: "reb",  label: "Rebounds", sub: "RPG", color: "#1E40AF" },
+  { key: "ast",  label: "Assists",  sub: "APG", color: "#059669" },
+  { key: "stl",  label: "Steals",   sub: "SPG", color: "#92400E" },
+  { key: "blk",  label: "Blocks",   sub: "BPG", color: "#5B21B6" },
+  { key: "mins", label: "Minutes",  sub: "MPG", color: "#4A7FD4" },
 ];
 
 const shootingStats = [
-  { key: "fgPct", label: "FG%", color: "#C8102E" },
+  { key: "fgPct",  label: "FG%", color: "#C8102E" },
   { key: "fg3Pct", label: "3P%", color: "#1E40AF" },
-  { key: "ftPct", label: "FT%", color: "#059669" },
+  { key: "ftPct",  label: "FT%", color: "#059669" },
 ];
 
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [player, setPlayer] = useState<PlayerDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { player, loading, error } = usePlayerDetail(id);
 
-  useEffect(() => {
-    if (!id) return;
-    getPlayer(parseInt(id))
-      .then(setPlayer)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow Condensed',sans-serif",
-          fontSize: 20,
-          color: "#8A94AE",
-          letterSpacing: 2,
-        }}
-      >
-        LOADING...
-      </div>
-    );
-  }
+  if (loading) return <LoadingState />;
 
   if (error || !player) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow',sans-serif",
-        }}
-      >
-        <div style={{ fontSize: 16, color: "#C8102E" }}>{error || "Player not found"}</div>
+      <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
+        <div className="text-sm text-brand">{error || "Player not found"}</div>
         <button
           onClick={() => navigate("/players")}
-          style={{
-            marginTop: 24,
-            padding: "10px 24px",
-            background: "oklch(0.62 0.18 25)",
-            color: "#fff",
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
+          className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-lg
+                     cursor-pointer border-none hover:opacity-90 transition-opacity"
         >
           Back to Players
         </button>
@@ -95,191 +51,69 @@ export default function PlayerDetailPage() {
   };
 
   return (
-    <div style={{ padding: "36px 44px", maxWidth: 800, margin: "0 auto" }}>
+    <div className="px-6 sm:px-11 py-9 max-w-[800px] mx-auto">
+      {/* Back button */}
       <button
         onClick={() => navigate("/players")}
-        style={{
-          background: "none",
-          border: "none",
-          color: "#6B7590",
-          cursor: "pointer",
-          fontFamily: "'Barlow',sans-serif",
-          fontSize: 13,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 28,
-          padding: 0,
-        }}
+        className="flex items-center gap-1.5 text-[13px] text-muted cursor-pointer mb-7
+                   bg-transparent border-none p-0 hover:text-ink transition-colors"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <path d="M19 12H5M12 5l-7 7 7 7" />
         </svg>
         Back to Players
       </button>
 
       {/* Header */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #1C2235",
-          borderRadius: 16,
-          padding: "32px 40px",
-          marginBottom: 20,
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-        }}
-      >
+      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-2xl px-10 py-8 mb-5 flex items-center gap-6">
         <TeamLogo team={teamFallback} abbr={player.teamAbbr} size={80} />
         <div>
-          <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 32,
-            }}
-          >
-            {player.name}
-          </div>
-          <div style={{ fontSize: 16, color: "#6B7590", marginTop: 4 }}>
+          <div className="font-display font-extrabold text-[32px]">{player.name}</div>
+          <div className="text-base text-muted mt-1">
             {player.position}
             {player.jerseyNumber ? ` · #${player.jerseyNumber}` : ""}
-            <span style={{ marginLeft: 12 }}>
-              {player.teamCity} {player.teamName}
-            </span>
+            <span className="ml-3">{player.teamCity} {player.teamName}</span>
           </div>
-          <div style={{ fontSize: 13, color: "#8A94AE", marginTop: 4 }}>
-            {player.gamesPlayed} Games Played
-          </div>
+          <div className="text-[13px] text-faint mt-1">{player.gamesPlayed} Games Played</div>
         </div>
       </div>
 
-      {/* Per-game stats */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #1C2235",
-          borderRadius: 12,
-          padding: "24px 28px",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            letterSpacing: 1.2,
-            color: "#8A94AE",
-            fontWeight: 700,
-            marginBottom: 16,
-            textTransform: "uppercase",
-          }}
-        >
+      {/* Per-game averages */}
+      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-xl px-7 py-6 mb-5">
+        <div className="text-[11px] tracking-[1.2px] text-faint font-bold uppercase mb-4">
           Per Game Averages
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="grid grid-cols-3 gap-3">
           {statCategories.map(({ key, label, sub, color }) => (
-            <div
-              key={key}
-              style={{
-                textAlign: "center",
-                padding: "16px 0",
-                background: "#F8F9FD",
-                borderRadius: 10,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "'Barlow Condensed',sans-serif",
-                  fontWeight: 800,
-                  fontSize: 28,
-                  color,
-                }}
-              >
-                {player[key as keyof PlayerDetail]?.toFixed?.(1) ?? "0.0"}
+            <div key={key} className="text-center py-4 bg-surface-2 rounded-xl">
+              <div className="font-display font-extrabold text-[28px]" style={{ color }}>
+                {(player[key as keyof PlayerDetail] as number)?.toFixed?.(1) ?? "0.0"}
               </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  color: "#8A94AE",
-                  textTransform: "uppercase",
-                  marginTop: 4,
-                }}
-              >
+              <div className="text-[10px] font-bold tracking-[1px] text-faint uppercase mt-1">
                 {label}
               </div>
-              <div style={{ fontSize: 11, color: "#BDC4D6" }}>{sub}</div>
+              <div className="text-[11px] text-faint">{sub}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Shooting */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #1C2235",
-          borderRadius: 12,
-          padding: "24px 28px",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            letterSpacing: 1.2,
-            color: "#8A94AE",
-            fontWeight: 700,
-            marginBottom: 16,
-            textTransform: "uppercase",
-          }}
-        >
+      {/* Shooting splits */}
+      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-xl px-7 py-6 mb-5">
+        <div className="text-[11px] tracking-[1.2px] text-faint font-bold uppercase mb-4">
           Shooting
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="grid grid-cols-3 gap-3">
           {shootingStats.map(({ key, label, color }) => {
             const val = player[key as keyof PlayerDetail] as number;
             const pct = (val * 100).toFixed(1);
             return (
-              <div
-                key={key}
-                style={{
-                  textAlign: "center",
-                  padding: "16px 0",
-                  background: "#F8F9FD",
-                  borderRadius: 10,
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "'Barlow Condensed',sans-serif",
-                    fontWeight: 800,
-                    fontSize: 28,
-                    color,
-                  }}
-                >
+              <div key={key} className="text-center py-4 bg-surface-2 rounded-xl">
+                <div className="font-display font-extrabold text-[28px]" style={{ color }}>
                   {pct}%
                 </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: 1,
-                    color: "#8A94AE",
-                    textTransform: "uppercase",
-                    marginTop: 4,
-                  }}
-                >
+                <div className="text-[10px] font-bold tracking-[1px] text-faint uppercase mt-1">
                   {label}
                 </div>
               </div>

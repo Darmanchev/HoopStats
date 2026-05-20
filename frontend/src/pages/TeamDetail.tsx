@@ -1,80 +1,25 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import type { Team, TeamStats } from "../types";
-import { getTeams, getTeamStats } from "../lib/api";
 import TeamLogo from "../components/teams/TeamLogo";
 import FormBadge from "../components/teams/FormBadge";
 import SparkLine from "../components/teams/SparkLine";
+import { LoadingState } from "../components/ui/PageState";
+import { useTeamDetail } from "../hooks/useTeamDetail";
 
 export default function TeamDetail() {
   const { abbr } = useParams<{ abbr: string }>();
   const navigate = useNavigate();
-  const [team, setTeam] = useState<Team | null>(null);
-  const [stats, setStats] = useState<TeamStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { team, stats, loading, error } = useTeamDetail(abbr);
 
-  useEffect(() => {
-    if (!abbr) return;
-
-    Promise.all([getTeams(), getTeamStats(abbr)])
-      .then(([teamsMap, teamStats]) => {
-        const found = teamsMap[abbr];
-        if (!found) {
-          setError("Team not found");
-          return;
-        }
-        setTeam(found);
-        setStats(teamStats);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [abbr]);
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow Condensed',sans-serif",
-          fontSize: 20,
-          color: "#8A94AE",
-          letterSpacing: 2,
-        }}
-      >
-        LOADING...
-      </div>
-    );
-  }
+  if (loading) return <LoadingState />;
 
   if (error || !team) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow',sans-serif",
-        }}
-      >
-        <div style={{ fontSize: 16, color: "#C8102E" }}>{error || "Team not found"}</div>
+      <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
+        <div className="text-sm text-brand">{error || "Team not found"}</div>
         <button
           onClick={() => navigate("/teams")}
-          style={{
-            marginTop: 24,
-            padding: "10px 24px",
-            background: "oklch(0.62 0.18 25)",
-            color: "#fff",
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
+          className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-lg
+                     cursor-pointer border-none hover:opacity-90 transition-opacity"
         >
           Back to Teams
         </button>
@@ -84,130 +29,57 @@ export default function TeamDetail() {
 
   const wins = parseInt(team.record.split("-")[0]) || 0;
   const losses = parseInt(team.record.split("-")[1]) || 0;
-  const winPct = wins + losses > 0 ? (wins / (wins + losses) * 100).toFixed(1) : "0.0";
+  const winPct =
+    wins + losses > 0 ? ((wins / (wins + losses)) * 100).toFixed(1) : "0.0";
 
   return (
-    <div style={{ padding: "36px 44px", maxWidth: 800, margin: "0 auto" }}>
+    <div className="px-6 sm:px-11 py-9 max-w-[800px] mx-auto">
+      {/* Back button */}
       <button
         onClick={() => navigate("/teams")}
-        style={{
-          background: "none",
-          border: "none",
-          color: "#6B7590",
-          cursor: "pointer",
-          fontFamily: "'Barlow',sans-serif",
-          fontSize: 13,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 28,
-          padding: 0,
-        }}
+        className="flex items-center gap-1.5 text-[13px] text-muted cursor-pointer mb-7
+                   bg-transparent border-none p-0 hover:text-ink transition-colors"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <path d="M19 12H5M12 5l-7 7 7 7" />
         </svg>
         Back to Teams
       </button>
 
       {/* Header */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #1C2235",
-          borderRadius: 16,
-          padding: "32px 40px",
-          marginBottom: 20,
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-        }}
-      >
+      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-2xl px-10 py-8 mb-5 flex items-center gap-6">
         <TeamLogo team={team} abbr={team.abbr} size={80} />
         <div>
-          <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 32,
-            }}
-          >
+          <div className="font-display font-extrabold text-[32px]">
             {team.city}{" "}
             <span style={{ color: team.accent }}>{team.name}</span>
           </div>
-          <div style={{ fontSize: 16, color: "#6B7590", marginTop: 4 }}>
+          <div className="text-base text-muted mt-1">
             {team.record} · {winPct}%
           </div>
         </div>
       </div>
 
-      {/* Form */}
+      {/* Form & sparkline */}
       {stats && stats.form.length > 0 ? (
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: "1px solid #1C2235",
-            borderRadius: 12,
-            padding: "24px 28px",
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: 1.2,
-              color: "#8A94AE",
-              fontWeight: 700,
-              marginBottom: 12,
-              textTransform: "uppercase",
-            }}
-          >
+        <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-xl px-7 py-6 mb-5">
+          <div className="text-[11px] tracking-[1.2px] text-faint font-bold uppercase mb-3">
             Last 5 Games
           </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+          <div className="flex gap-2 mb-6">
             {stats.form.map((r, i) => (
               <FormBadge key={i} r={r as "W" | "L"} />
             ))}
           </div>
 
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: 1.2,
-              color: "#8A94AE",
-              fontWeight: 700,
-              marginBottom: 12,
-              textTransform: "uppercase",
-            }}
-          >
+          <div className="text-[11px] tracking-[1.2px] text-faint font-bold uppercase mb-3">
             Points — Last 10 Games
           </div>
-          <SparkLine
-            data={stats.lastScores}
-            color={team.accent}
-            width={600}
-            height={80}
-          />
+          <SparkLine data={stats.lastScores} color={team.accent} width={600} height={80} />
         </div>
       ) : (
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: "1px solid #1C2235",
-            borderRadius: 12,
-            padding: "24px 28px",
-            textAlign: "center",
-            color: "#8A94AE",
-          }}
-        >
+        <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-xl px-7 py-6 text-center text-faint">
           No stats available yet
         </div>
       )}

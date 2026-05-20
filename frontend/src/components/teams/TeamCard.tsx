@@ -15,38 +15,29 @@ export default function TeamCard({ team, stats, onClick }: Props) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(team.abbr)}
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #1C2235",
-        borderRadius: 14,
-        padding: "22px 24px",
-        cursor: "pointer",
-        transition: "all 0.15s ease",
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick(team.abbr);
+        }
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.4)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "none";
-        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
-      }}
+      className="bg-surface border border-line rounded-2xl px-6 py-[22px] cursor-pointer
+                 shadow-[var(--shadow-card)] transition-all duration-200
+                 hover:-translate-y-0.5 hover:border-line-strong
+                 hover:shadow-[var(--shadow-card-hover)]
+                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+      <div className="flex items-center gap-3.5 mb-4">
         <TeamLogo team={team} abbr={team.abbr} size={48} />
         <div>
-          <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 20,
-            }}
-          >
+          <div className="font-display font-extrabold text-xl">
             {team.city}{" "}
             <span style={{ color: team.accent }}>{team.name}</span>
           </div>
-          <div style={{ fontSize: 13, color: "#6B7590" }}>
+          <div className="text-[13px] text-muted">
             {team.record} · {winPct}%
           </div>
         </div>
@@ -54,18 +45,10 @@ export default function TeamCard({ team, stats, onClick }: Props) {
 
       {stats && stats.form.length > 0 && (
         <div>
-          <div
-            style={{
-              fontSize: 10,
-              letterSpacing: 1.2,
-              color: "#8A94AE",
-              fontWeight: 700,
-              marginBottom: 6,
-            }}
-          >
+          <div className="text-[10px] tracking-[1.2px] text-faint font-bold mb-1.5">
             LAST 5
           </div>
-          <div style={{ display: "flex", gap: 5 }}>
+          <div className="flex gap-[5px]">
             {stats.form.map((r: string, i: number) => (
               <FormBadge key={i} r={r as "W" | "L"} />
             ))}

@@ -13,35 +13,15 @@ export default function ErrorPage() {
   const message = error?.message || "Something went wrong";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-        background: "#F4F6FC",
-        color: "#1C2235",
-        fontFamily: "'Barlow',sans-serif",
-      }}
-    >
-      <div style={{ fontSize: 72, fontWeight: 900, color: "oklch(0.62 0.18 25)" }}>
+    <div className="flex flex-col items-center justify-center h-screen bg-bg text-ink">
+      <div className="text-[72px] font-black text-brand leading-none">
         {status}
       </div>
-      <div style={{ fontSize: 20, marginTop: 8, color: "#6B7590" }}>
-        {message}
-      </div>
+      <div className="text-xl mt-2 text-muted">{message}</div>
       <Link
         to="/"
-        style={{
-          marginTop: 24,
-          padding: "10px 24px",
-          background: "oklch(0.62 0.18 25)",
-          color: "#fff",
-          borderRadius: 8,
-          textDecoration: "none",
-          fontWeight: 600,
-        }}
+        className="mt-6 px-6 py-2.5 bg-brand text-white rounded-lg no-underline
+                   font-semibold hover:opacity-90 transition-opacity"
       >
         Back to Dashboard
       </Link>

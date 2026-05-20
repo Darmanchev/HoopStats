@@ -11,7 +11,6 @@ class InjurySchema(CamelModel):
     injury: str
     status: Literal["Out", "Doubtful", "Questionable", "Day-to-Day"]
     team_name: str | None = None
-    player_id: int | None = None
 
     @field_validator("team_abbr")
     @classmethod

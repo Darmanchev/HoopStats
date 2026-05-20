@@ -9,23 +9,26 @@ import Injuries from "./pages/Injuries";
 import Players from "./pages/Players";
 import PlayerDetail from "./pages/PlayerDetail";
 import ErrorPage from "./pages/ErrorPage";
+import ErrorBoundary from "./components/ui/ErrorBoundary";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="schedule" element={<Schedule />} />
-          <Route path="match/:id" element={<MatchDetail />} />
-          <Route path="teams" element={<Teams />} />
-          <Route path="teams/:abbr" element={<TeamDetail />} />
-          <Route path="players" element={<Players />} />
-          <Route path="players/:id" element={<PlayerDetail />} />
-          <Route path="injuries" element={<Injuries />} />
-        </Route>
-        <Route path="*" element={<ErrorPage />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="schedule" element={<Schedule />} />
+            <Route path="match/:id" element={<MatchDetail />} />
+            <Route path="teams" element={<Teams />} />
+            <Route path="teams/:abbr" element={<TeamDetail />} />
+            <Route path="players" element={<Players />} />
+            <Route path="players/:id" element={<PlayerDetail />} />
+            <Route path="injuries" element={<Injuries />} />
+          </Route>
+          <Route path="*" element={<ErrorPage />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

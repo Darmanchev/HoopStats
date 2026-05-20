@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload  # ← НОВОЕ
@@ -27,7 +27,7 @@ async def get_team(abbr: str, db: AsyncSession = Depends(get_db)):
     )
     team = result.scalar_one_or_none()
     if not team:
-        return None
+        raise HTTPException(status_code=404, detail="Team not found")
     return TeamDetailSchema(
         abbr=team.abbr,
         name=team.name,
@@ -43,4 +43,7 @@ async def get_team_stats(abbr: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(TeamStats).where(TeamStats.team_abbr == abbr)
     )
-    return result.scalar_one_or_none()
+    stats = result.scalar_one_or_none()
+    if not stats:
+        raise HTTPException(status_code=404, detail="Team stats not found")
+    return stats

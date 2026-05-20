@@ -22,10 +22,7 @@ export default function TeamLogo({ team, abbr, size = 48 }: Props) {
       alt={`${team.city} ${team.name}`}
       width={size}
       height={size}
-      style={{
-        flexShrink: 0,
-        objectFit: "contain",
-      }}
+      className="shrink-0 object-contain"
       onError={(e) => {
         const target = e.currentTarget;
         target.style.display = "none";

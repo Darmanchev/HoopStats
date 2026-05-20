@@ -1,13 +1,15 @@
 import { useInjuries } from "../hooks/useInjuries";
 import { useState } from "react";
+import { LoadingState, ErrorState } from "../components/ui/PageState";
 
 type StatusFilter = "all" | "Out" | "Doubtful" | "Questionable" | "Day-to-Day";
 
+// Цвета-токены (var) — переключаются вместе с темой
 const statusColors: Record<string, { bg: string; text: string }> = {
-  Out: { bg: "#FEE2E2", text: "#991B1B" },
-  Doubtful: { bg: "#FEF3C7", text: "#92400E" },
-  Questionable: { bg: "#DBEAFE", text: "#1E40AF" },
-  "Day-to-Day": { bg: "#E0E7FF", text: "#3730A3" },
+  Out: { bg: "var(--color-danger-bg)", text: "var(--color-danger-fg)" },
+  Doubtful: { bg: "var(--color-warn-bg)", text: "var(--color-warn-fg)" },
+  Questionable: { bg: "var(--color-accent-bg)", text: "var(--color-accent-fg)" },
+  "Day-to-Day": { bg: "var(--color-violet-bg)", text: "var(--color-violet-fg)" },
 };
 
 export default function Injuries() {
@@ -24,106 +26,40 @@ export default function Injuries() {
     return matchStatus && matchSearch;
   });
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow Condensed',sans-serif",
-          fontSize: 20,
-          color: "#8A94AE",
-          letterSpacing: 2,
-        }}
-      >
-        LOADING...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow',sans-serif",
-          fontSize: 16,
-          color: "#C8102E",
-        }}
-      >
-        {error}
-      </div>
-    );
-  }
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
 
   return (
-    <div style={{ padding: "36px 44px", maxWidth: 900, margin: "0 auto" }}>
-      <div style={{ marginBottom: 28 }}>
-        <div
-          style={{
-            fontFamily: "'Barlow Condensed',sans-serif",
-            fontWeight: 800,
-            fontSize: 26,
-            letterSpacing: 1.5,
-            textTransform: "uppercase",
-          }}
-        >
+    <div className="px-6 sm:px-11 py-9 max-w-[900px] mx-auto">
+      <header className="mb-7">
+        <h1 className="font-display font-extrabold text-[26px] tracking-wide uppercase">
           Injury Report
-        </div>
-        <div style={{ fontSize: 13, color: "#6B7590", marginTop: 4 }}>
-          {filtered.length} players
-        </div>
-      </div>
+        </h1>
+        <p className="text-[13px] text-muted mt-1">{filtered.length} players</p>
+      </header>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          marginBottom: 24,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="flex gap-3 mb-6 items-center flex-wrap">
         <input
           type="text"
           placeholder="Search players..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 8,
-            border: "1px solid #E4E8F2",
-            fontSize: 14,
-            fontFamily: "'Barlow',sans-serif",
-            outline: "none",
-            width: 240,
-          }}
+          className="px-3.5 py-2 rounded-lg border border-line bg-surface text-ink text-sm w-60
+                     outline-none placeholder:text-faint focus:border-brand transition-colors"
         />
 
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5 flex-wrap">
           {(["all", "Out", "Doubtful", "Questionable", "Day-to-Day"] as StatusFilter[]).map(
             (f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                style={{
-                  padding: "7px 14px",
-                  borderRadius: 7,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  cursor: "pointer",
-                  fontFamily: "'Barlow',sans-serif",
-                  background: filter === f ? "oklch(0.55 0.18 25)" : "transparent",
-                  border: `1px solid ${filter === f ? "oklch(0.55 0.18 25)" : "#E4E8F2"}`,
-                  color: filter === f ? "#fff" : "#6B7590",
-                }}
+                className={`px-3.5 py-[7px] rounded-[7px] text-[11px] font-bold tracking-wide
+                            uppercase cursor-pointer transition-colors ${
+                              filter === f
+                                ? "bg-brand border border-brand text-white"
+                                : "bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink"
+                            }`}
               >
                 {f}
               </button>
@@ -133,75 +69,41 @@ export default function Injuries() {
       </div>
 
       {filtered.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "48px 0",
-            color: "#8A94AE",
-            fontFamily: "'Barlow',sans-serif",
-          }}
-        >
-          No injuries found
-        </div>
+        <div className="text-center py-12 text-faint">No injuries found</div>
       ) : (
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: "1px solid #1C2235",
-            borderRadius: 14,
-            overflow: "hidden",
-          }}
-        >
+        <div className="bg-surface border border-line rounded-2xl overflow-hidden
+                        shadow-[var(--shadow-card)]">
           {filtered.map((injury, idx) => {
-            const colors = statusColors[injury.status] || { bg: "#F3F4F6", text: "#374151" };
+            const colors =
+              statusColors[injury.status] || {
+                bg: "var(--color-surface-2)",
+                text: "var(--color-muted)",
+              };
             return (
               <div
                 key={`${injury.teamAbbr}-${injury.playerName}-${idx}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "16px 24px",
-                  borderBottom: idx < filtered.length - 1 ? "1px solid #EDF0F8" : "none",
-                }}
+                className={`flex items-center px-6 py-4 ${
+                  idx < filtered.length - 1 ? "border-b border-line" : ""
+                }`}
               >
-                <div style={{ width: 50, flexShrink: 0 }}>
-                  <span
-                    style={{
-                      fontFamily: "'Barlow Condensed',sans-serif",
-                      fontWeight: 700,
-                      fontSize: 16,
-                      color: "#1C2235",
-                    }}
-                  >
+                <div className="w-[50px] shrink-0">
+                  <span className="font-display font-bold text-base text-ink">
                     {injury.teamAbbr}
                   </span>
                 </div>
 
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontFamily: "'Barlow Condensed',sans-serif",
-                      fontWeight: 700,
-                      fontSize: 16,
-                    }}
-                  >
+                <div className="flex-1">
+                  <div className="font-display font-bold text-base">
                     {injury.playerName}
                   </div>
-                  <div style={{ fontSize: 13, color: "#6B7590" }}>
+                  <div className="text-[13px] text-muted">
                     {injury.position} · {injury.injury}
                   </div>
                 </div>
 
                 <span
-                  style={{
-                    padding: "4px 12px",
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: 0.5,
-                    background: colors.bg,
-                    color: colors.text,
-                  }}
+                  className="px-3 py-1 rounded-md text-[11px] font-bold tracking-[0.5px]"
+                  style={{ background: colors.bg, color: colors.text }}
                 >
                   {injury.status}
                 </span>

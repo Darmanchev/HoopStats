@@ -1,8 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from .routers import teams, games, injuries, players
+from .scheduler import start_scheduler, stop_scheduler
 
-app = FastAPI(title="HoopStats API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    start_scheduler()
+    yield
+    # Shutdown
+    stop_scheduler()
+
+app = FastAPI(title="HoopStats API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

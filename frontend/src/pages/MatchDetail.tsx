@@ -1,86 +1,26 @@
-import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { UpcomingGame, Team, TeamStats } from "../types";
-import { getMatch, getTeamStats, getTeams } from "../lib/api";
 import TeamLogo from "../components/teams/TeamLogo";
 import WinBar from "../components/matches/WinBar";
 import FormBadge from "../components/teams/FormBadge";
 import SparkLine from "../components/teams/SparkLine";
+import { LoadingState } from "../components/ui/PageState";
+import { useMatch } from "../hooks/useMatch";
 
 export default function MatchDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [game, setGame] = useState<UpcomingGame | null>(null);
-  const [teams, setTeams] = useState<Record<string, Team>>({});
-  const [stats, setStats] = useState<Record<string, TeamStats>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { game, teams, stats, loading, error } = useMatch(id);
 
-  useEffect(() => {
-    if (!id) return;
-
-    Promise.all([getMatch(id), getTeams()])
-      .then(([gameData, teamsData]) => {
-        setGame(gameData);
-        setTeams(teamsData);
-        return Promise.all([
-          getTeamStats(gameData.team1),
-          getTeamStats(gameData.team2),
-        ]);
-      })
-      .then(([s1, s2]) => {
-        if (game) {
-          setStats({ [game.team1]: s1, [game.team2]: s2 });
-        }
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow Condensed',sans-serif",
-          fontSize: 20,
-          color: "#8A94AE",
-          letterSpacing: 2,
-        }}
-      >
-        LOADING...
-      </div>
-    );
-  }
+  if (loading) return <LoadingState />;
 
   if (error || !game) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow',sans-serif",
-        }}
-      >
-        <div style={{ fontSize: 16, color: "#C8102E" }}>{error || "Game not found"}</div>
+      <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
+        <div className="text-sm text-brand">{error || "Game not found"}</div>
         <button
           onClick={() => navigate("/")}
-          style={{
-            marginTop: 24,
-            padding: "10px 24px",
-            background: "oklch(0.62 0.18 25)",
-            color: "#fff",
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
+          className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-lg
+                     cursor-pointer border-none hover:opacity-90 transition-opacity"
         >
           Back to Dashboard
         </button>
@@ -97,264 +37,102 @@ export default function MatchDetail() {
   if (!t1 || !t2) return null;
 
   return (
-    <div style={{ padding: "32px 44px", maxWidth: 880, margin: "0 auto" }}>
+    <div className="px-6 sm:px-11 py-9 max-w-[880px] mx-auto">
+      {/* Back button */}
       <button
         onClick={() => navigate("/")}
-        style={{
-          background: "none",
-          border: "none",
-          color: "#6B7590",
-          cursor: "pointer",
-          fontFamily: "'Barlow',sans-serif",
-          fontSize: 13,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 28,
-          padding: 0,
-        }}
+        className="flex items-center gap-1.5 text-[13px] text-muted cursor-pointer mb-7
+                   bg-transparent border-none p-0 hover:text-ink transition-colors"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <path d="M19 12H5M12 5l-7 7 7 7" />
         </svg>
         Back to Dashboard
       </button>
 
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #1C2235",
-          borderRadius: 16,
-          padding: "32px 40px",
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 1.5,
-            color: "#4A7FD4",
-            textTransform: "uppercase",
-            marginBottom: 28,
-          }}
-        >
+      {/* Match hero card */}
+      <div className="bg-surface border border-line rounded-2xl px-10 py-8 mb-5
+                      shadow-[var(--shadow-card)]">
+        <div className="text-center text-[11px] font-bold tracking-[1.5px] text-info uppercase mb-7">
           {game.date} · {game.time} · {game.venue}
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 28,
-          }}
-        >
-          <div style={{ textAlign: "center", flex: 1 }}>
+
+        <div className="flex items-center justify-between mb-7">
+          {/* Team 1 */}
+          <div className="text-center flex-1">
             <TeamLogo team={t1} abbr={game.team1} size={68} />
-            <div
-              style={{
-                fontFamily: "'Barlow Condensed',sans-serif",
-                fontWeight: 800,
-                fontSize: 26,
-                marginTop: 12,
-              }}
-            >
-              {t1.city}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Barlow Condensed',sans-serif",
-                fontWeight: 700,
-                fontSize: 20,
-                color: t1.accent,
-              }}
-            >
+            <div className="font-display font-extrabold text-[26px] mt-3">{t1.city}</div>
+            <div className="font-display font-bold text-[20px]" style={{ color: t1.accent }}>
               {t1.name}
             </div>
-            <div style={{ fontSize: 13, color: "#6B7590", marginTop: 4 }}>
-              {t1.record}
-            </div>
+            <div className="text-[13px] text-muted mt-1">{t1.record}</div>
           </div>
-          <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 900,
-              fontSize: 52,
-              color: "#EDF0F8",
-              letterSpacing: 6,
-            }}
-          >
+
+          <div className="font-display font-black text-[52px] text-line-strong tracking-[6px]">
             VS
           </div>
-          <div style={{ textAlign: "center", flex: 1 }}>
+
+          {/* Team 2 */}
+          <div className="text-center flex-1">
             <TeamLogo team={t2} abbr={game.team2} size={68} />
-            <div
-              style={{
-                fontFamily: "'Barlow Condensed',sans-serif",
-                fontWeight: 800,
-                fontSize: 26,
-                marginTop: 12,
-              }}
-            >
-              {t2.city}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Barlow Condensed',sans-serif",
-                fontWeight: 700,
-                fontSize: 20,
-                color: t2.accent,
-              }}
-            >
+            <div className="font-display font-extrabold text-[26px] mt-3">{t2.city}</div>
+            <div className="font-display font-bold text-[20px]" style={{ color: t2.accent }}>
               {t2.name}
             </div>
-            <div style={{ fontSize: 13, color: "#6B7590", marginTop: 4 }}>
-              {t2.record}
-            </div>
+            <div className="text-[13px] text-muted mt-1">{t2.record}</div>
           </div>
         </div>
+
         <WinBar pct1={win1} team1={t1} team2={t2} />
       </div>
 
+      {/* Prediction */}
       {game.prediction && (
-        <div
-          style={{
-            background: "oklch(0.94 0.015 225)",
-            border: "1px solid oklch(0.20 0.05 225)",
-            borderRadius: 12,
-            padding: "20px 26px",
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "oklch(0.62 0.18 225)",
-              }}
-            />
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 1.5,
-                color: "oklch(0.62 0.18 225)",
-                textTransform: "uppercase",
-              }}
-            >
+        <div className="bg-accent-bg border border-accent-fg/25
+                        rounded-xl px-[26px] py-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent-fg" />
+            <span className="text-[11px] font-bold tracking-[1.5px] text-accent-fg uppercase">
               Prediction · {fav.name} favored at {favPct}%
             </span>
           </div>
-          <p
-            style={{
-              fontSize: 14,
-              color: "#4A6080",
-              lineHeight: 1.7,
-              margin: 0,
-            }}
-          >
+          <p className="text-sm text-accent-fg/90 leading-relaxed m-0">
             {game.prediction}
           </p>
         </div>
       )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 14,
-          marginBottom: 20,
-        }}
-      >
+      {/* Team stats side by side */}
+      <div className="grid grid-cols-2 gap-3.5">
         {([game.team1, game.team2] as const).map((abbr) => {
           const t = teams[abbr];
           const s = stats[abbr];
           return (
-            <div
-              key={abbr}
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #1C2235",
-                borderRadius: 12,
-                padding: "20px 22px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 14,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "'Barlow Condensed',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 15,
-                    color: t.accent,
-                  }}
-                >
+            <div key={abbr} className="bg-surface border border-line rounded-xl px-[22px] py-5
+                                       shadow-[var(--shadow-card)]">
+              <div className="flex justify-between items-center mb-3.5">
+                <span className="font-display font-bold text-[15px]" style={{ color: t.accent }}>
                   {t.city} {t.name}
                 </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: 1.2,
-                    color: "#8A94AE",
-                    fontWeight: 700,
-                  }}
-                >
+                <span className="text-[10px] tracking-[1.2px] text-faint font-bold uppercase">
                   LAST 5
                 </span>
               </div>
               {s ? (
                 <>
-                  <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+                  <div className="flex gap-1.5 mb-[18px]">
                     {s.form.map((r, i) => (
                       <FormBadge key={i} r={r as "W" | "L"} />
                     ))}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      letterSpacing: 1.2,
-                      color: "#8A94AE",
-                      fontWeight: 700,
-                      marginBottom: 8,
-                    }}
-                  >
+                  <div className="text-[10px] tracking-[1.2px] text-faint font-bold uppercase mb-2">
                     PTS — LAST 10 GAMES
                   </div>
-                  <SparkLine
-                    data={s.lastScores}
-                    color={t.accent}
-                    width={210}
-                    height={52}
-                  />
+                  <SparkLine data={s.lastScores} color={t.accent} width={210} height={52} />
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: "#8A94AE" }}>
-                  Loading...
-                </div>
+                <div className="text-[13px] text-faint">Loading stats…</div>
               )}
             </div>
           );

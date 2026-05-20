@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { Player, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
 
@@ -15,8 +14,6 @@ const statItems = [
 ];
 
 export default function PlayerCard({ player, team, onClick }: Props) {
-  const [hov, setHov] = useState(false);
-
   const fallbackTeam: Team = {
     abbr: player.teamAbbr,
     name: "",
@@ -30,91 +27,55 @@ export default function PlayerCard({ player, team, onClick }: Props) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(player.id)}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: hov ? "#F2F4FF" : "#FFFFFF",
-        border: `1px solid ${hov ? "#2C3450" : "#E4E8F2"}`,
-        borderRadius: 14,
-        padding: "20px 24px",
-        cursor: "pointer",
-        transition: "all 0.15s ease",
-        transform: hov ? "translateY(-2px)" : "none",
-        boxShadow: hov
-          ? "0 8px 32px rgba(0,0,0,0.4)"
-          : "0 2px 8px rgba(0,0,0,0.2)",
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick(player.id);
+        }
       }}
+      className="bg-surface border border-line rounded-2xl px-6 py-5 cursor-pointer
+                 shadow-[var(--shadow-card)] transition-all duration-200
+                 hover:bg-hover hover:border-line-strong hover:-translate-y-0.5
+                 hover:shadow-[var(--shadow-card-hover)]
+                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+      <div className="flex items-center gap-3.5 mb-4">
         <TeamLogo team={t} abbr={player.teamAbbr} size={44} />
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 20,
-            }}
-          >
+        <div className="flex-1">
+          <div className="font-display font-extrabold text-xl">
             {player.name}
           </div>
-          <div style={{ fontSize: 13, color: "#6B7590", marginTop: 2 }}>
+          <div className="text-[13px] text-muted mt-0.5">
             {player.position}
             {player.jerseyNumber ? ` · #${player.jerseyNumber}` : ""}
-            <span style={{ marginLeft: 8, color: "#8A94AE" }}>
-              {player.teamAbbr}
-            </span>
+            <span className="ml-2 text-faint">{player.teamAbbr}</span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 12 }}>
+      <div className="flex gap-3">
         {statItems.map(({ key, label, color }) => (
           <div
             key={key}
-            style={{
-              flex: 1,
-              textAlign: "center",
-              padding: "10px 0",
-              background: "#F8F9FD",
-              borderRadius: 8,
-            }}
+            className="flex-1 text-center py-2.5 bg-surface-2 rounded-lg"
           >
             <div
-              style={{
-                fontFamily: "'Barlow Condensed',sans-serif",
-                fontWeight: 800,
-                fontSize: 22,
-                color,
-              }}
+              className="font-display font-extrabold text-[22px]"
+              style={{ color }}
             >
               {player[key].toFixed(1)}
             </div>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 1,
-                color: "#8A94AE",
-                textTransform: "uppercase",
-                marginTop: 2,
-              }}
-            >
+            <div className="text-[10px] font-bold tracking-wide text-faint uppercase mt-0.5">
               {label}
             </div>
           </div>
         ))}
       </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          fontSize: 11,
-          color: "#BDC4D6",
-          textAlign: "right",
-          fontWeight: 600,
-        }}
-      >
+      <div className="mt-3 text-[11px] text-faint text-right font-semibold">
         {player.gamesPlayed} GP · {player.mins.toFixed(1)} MPG
       </div>
     </div>

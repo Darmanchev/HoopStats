@@ -4,6 +4,7 @@ import type { UpcomingGame, Game } from "../types";
 import { useGames } from "../hooks/useGames";
 import { useTeams } from "../hooks/useTeams";
 import ScheduleRow from "../components/matches/ScheduleRow";
+import { LoadingState, ErrorState } from "../components/ui/PageState";
 
 type TypeFilter = "all" | "upcoming" | "results";
 type SeasonFilter = "all" | "regular" | "playoffs";
@@ -64,8 +65,11 @@ export default function Schedule() {
 
   const filtered = useMemo(() => {
     return all.filter((g) => {
-      if (typeFilter === "results") return "score1" in g;
-      if (typeFilter === "upcoming") return !("score1" in g);
+      // Тип игры — это ещё одно условие, а не ранний выход:
+      // раньше `return` обрывал фильтр и игнорировал сезон/месяц/день.
+      const isResult = "score1" in g;
+      if (typeFilter === "results" && !isResult) return false;
+      if (typeFilter === "upcoming" && isResult) return false;
       if (seasonFilter !== "all" && g.seasonType !== seasonFilter) return false;
       if (monthFilter !== "all" && getMonthKey(g.date) !== monthFilter) return false;
       if (dayFilter !== "all" && getDayLabel(g.date) !== dayFilter) return false;
@@ -83,173 +87,80 @@ export default function Schedule() {
     return groups;
   }, [filtered]);
 
-  if (gamesLoading || teamsLoading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow Condensed',sans-serif",
-          fontSize: 20,
-          color: "#8A94AE",
-          letterSpacing: 2,
-        }}
-      >
-        LOADING...
-      </div>
-    );
-  }
+  if (gamesLoading || teamsLoading) return <LoadingState />;
+  if (gamesError || teamsError)
+    return <ErrorState message={gamesError || teamsError || ""} />;
 
-  if (gamesError || teamsError) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow',sans-serif",
-          fontSize: 16,
-          color: "#C8102E",
-        }}
-      >
-        {gamesError || teamsError}
-      </div>
-    );
-  }
+  const selectCls =
+    "px-3 py-[7px] rounded-[7px] text-xs border border-line text-ink bg-surface cursor-pointer";
 
   return (
-    <div style={{ padding: "36px 44px", maxWidth: 900, margin: "0 auto" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 26,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-            }}
-          >
-            Schedule
-          </div>
-          <div style={{ fontSize: 13, color: "#6B7590", marginTop: 4 }}>
-            2025–26 NBA Season · {filtered.length} games
-          </div>
-        </div>
-      </div>
+    <div className="px-6 sm:px-11 py-9 max-w-[900px] mx-auto">
+      <header className="mb-5">
+        <h1 className="font-display font-extrabold text-[26px] tracking-wide uppercase">
+          Schedule
+        </h1>
+        <p className="text-[13px] text-muted mt-1">
+          2025–26 NBA Season · {filtered.length} games
+        </p>
+      </header>
 
-      {/* Filters */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          marginBottom: 24,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        {/* Type filter */}
-        <div style={{ display: "flex", gap: 4 }}>
+      {/* фильтры */}
+      <div className="flex gap-2.5 mb-6 items-center flex-wrap">
+        <div className="flex gap-1">
           {(["all", "upcoming", "results"] as TypeFilter[]).map((f) => (
             <button
               key={f}
-              onClick={() => {
-                setTypeFilter(f);
-              }}
-              style={{
-                padding: "7px 14px",
-                borderRadius: 7,
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 1,
-                textTransform: "uppercase",
-                cursor: "pointer",
-                fontFamily: "'Barlow',sans-serif",
-                background: typeFilter === f ? "oklch(0.55 0.18 25)" : "transparent",
-                border: `1px solid ${typeFilter === f ? "oklch(0.55 0.18 25)" : "#E4E8F2"}`,
-                color: typeFilter === f ? "#fff" : "#6B7590",
-              }}
+              onClick={() => setTypeFilter(f)}
+              className={`px-3.5 py-[7px] rounded-[7px] text-[11px] font-bold tracking-wide
+                          uppercase cursor-pointer transition-colors ${
+                            typeFilter === f
+                              ? "bg-brand border border-brand text-white"
+                              : "bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink"
+                          }`}
             >
               {f}
             </button>
           ))}
         </div>
 
-        {/* Season filter */}
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="flex gap-1">
           {(["all", "regular", "playoffs"] as SeasonFilter[]).map((s) => (
             <button
               key={s}
               onClick={() => setSeasonFilter(s)}
-              style={{
-                padding: "7px 14px",
-                borderRadius: 7,
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 1,
-                cursor: "pointer",
-                fontFamily: "'Barlow',sans-serif",
-                background: seasonFilter === s ? "oklch(0.45 0.15 220)" : "transparent",
-                border: `1px solid ${seasonFilter === s ? "oklch(0.45 0.15 220)" : "#E4E8F2"}`,
-                color: seasonFilter === s ? "#fff" : "#6B7590",
-              }}
+              className={`px-3.5 py-[7px] rounded-[7px] text-[11px] font-bold tracking-wide
+                          cursor-pointer transition-colors ${
+                            seasonFilter === s
+                              ? "bg-info border border-info text-white"
+                              : "bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink"
+                          }`}
             >
               {seasonLabels[s]}
             </button>
           ))}
         </div>
 
-        {/* Month filter */}
         <select
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
-          style={{
-            padding: "7px 12px",
-            borderRadius: 7,
-            fontSize: 12,
-            fontFamily: "'Barlow',sans-serif",
-            border: "1px solid #E4E8F2",
-            color: "#1C2235",
-            background: "#fff",
-            cursor: "pointer",
-          }}
+          className={selectCls}
         >
           <option value="all">All months</option>
           {availableMonths.map((m) => {
             const [y, mo] = m.split("-");
-            const label = `${MONTHS[parseInt(mo) - 1]} ${y}`;
             return (
               <option key={m} value={m}>
-                {label}
+                {MONTHS[parseInt(mo) - 1]} {y}
               </option>
             );
           })}
         </select>
 
-        {/* Day filter */}
         <select
           value={dayFilter}
           onChange={(e) => setDayFilter(e.target.value)}
-          style={{
-            padding: "7px 12px",
-            borderRadius: 7,
-            fontSize: 12,
-            fontFamily: "'Barlow',sans-serif",
-            border: "1px solid #E4E8F2",
-            color: "#1C2235",
-            background: "#fff",
-            cursor: "pointer",
-          }}
+          className={selectCls}
         >
           <option value="all">All days</option>
           {DAYS.map((d) => (
@@ -266,84 +177,44 @@ export default function Schedule() {
               setDayFilter("all");
               setSeasonFilter("all");
             }}
-            style={{
-              padding: "7px 12px",
-              borderRadius: 7,
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "'Barlow',sans-serif",
-              background: "transparent",
-              border: "1px solid #E4E8F2",
-              color: "#6B7590",
-            }}
+            className="px-3 py-[7px] rounded-[7px] text-[11px] font-bold cursor-pointer
+                       bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink transition-colors"
           >
             Clear
           </button>
         )}
       </div>
 
-      {/* Grouped by month */}
+      {/* список, сгруппированный по месяцам */}
       {Object.keys(grouped).length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "48px 0",
-            color: "#8A94AE",
-            fontFamily: "'Barlow',sans-serif",
-          }}
-        >
-          No games found
-        </div>
+        <div className="text-center py-12 text-faint">No games found</div>
       ) : (
-        Object.entries(grouped).map(([monthLabel, games]) => (
-          <div key={monthLabel} style={{ marginBottom: 28 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 10,
-                paddingLeft: 4,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "'Barlow Condensed',sans-serif",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  letterSpacing: 1.5,
-                  color: "#8A94AE",
-                  textTransform: "uppercase",
-                }}
-              >
+        Object.entries(grouped).map(([monthLabel, games]) => {
+          // Бейдж сезона показываем только если ВСЕ игры месяца одного типа,
+          // иначе games[0] солгал бы про смешанный месяц.
+          const seasonType = games.every((g) => g.seasonType === games[0]?.seasonType)
+            ? games[0]?.seasonType
+            : null;
+          return (
+          <div key={monthLabel} className="mb-7">
+            <div className="flex items-center gap-2.5 mb-2.5 pl-1">
+              <div className="font-display font-bold text-base tracking-wide text-faint uppercase">
                 {monthLabel}
               </div>
-              {games[0]?.seasonType && (
+              {seasonType && (
                 <span
-                  style={{
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: 0.5,
-                    background: games[0].seasonType === "playoffs" ? "#FEF3C7" : "#DBEAFE",
-                    color: games[0].seasonType === "playoffs" ? "#92400E" : "#1E40AF",
-                    textTransform: "uppercase",
-                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-[0.5px] uppercase ${
+                    seasonType === "playoffs"
+                      ? "bg-warn-bg text-warn-fg"
+                      : "bg-accent-bg text-accent-fg"
+                  }`}
                 >
-                  {games[0].seasonType === "playoffs" ? "Playoffs" : "Regular"}
+                  {seasonType === "playoffs" ? "Playoffs" : "Regular"}
                 </span>
               )}
             </div>
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #1C2235",
-                borderRadius: 14,
-                overflow: "hidden",
-              }}
-            >
+            <div className="bg-surface border border-line rounded-2xl overflow-hidden
+                            shadow-[var(--shadow-card)]">
               {games.map((g, idx) => (
                 <ScheduleRow
                   key={g.id}
@@ -356,7 +227,8 @@ export default function Schedule() {
               ))}
             </div>
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );

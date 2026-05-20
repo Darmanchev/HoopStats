@@ -32,7 +32,6 @@ async def get_injuries(
             injury=i.injury,
             status=i.status,
             team_name=i.team.name if i.team else None,  # ← из relationship
-            player_id=i.player_id,
         )
         for i in injuries
     ]
@@ -63,7 +62,6 @@ async def get_team_injuries(
             injury=i.injury,
             status=i.status,
             team_name=i.team.name if i.team else None,
-            player_id=i.player_id,
         )
         for i in injuries
     ]

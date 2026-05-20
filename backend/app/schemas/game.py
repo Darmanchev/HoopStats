@@ -12,6 +12,7 @@ class GameBase(CamelModel):
     time: str
     venue: str
     season_type: str = "regular"
+    season: str = "2025-26"
 
     @field_validator("team1", "team2")
     @classmethod

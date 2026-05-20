@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useGames } from "../hooks/useGames";
 import { useTeams } from "../hooks/useTeams";
 import GameCard from "../components/matches/GameCard";
+import { LoadingState, ErrorState } from "../components/ui/PageState";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,70 +12,22 @@ export default function Dashboard() {
   const today = upcoming.filter((g) => g.isToday);
   const future = upcoming.filter((g) => !g.isToday);
 
-  if (gamesLoading || teamsLoading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow Condensed',sans-serif",
-          fontSize: 20,
-          color: "#8A94AE",
-          letterSpacing: 2,
-        }}
-      >
-        LOADING...
-      </div>
-    );
-  }
-
-  if (gamesError || teamsError) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "'Barlow',sans-serif",
-          fontSize: 16,
-          color: "#C8102E",
-        }}
-      >
-        {gamesError || teamsError}
-      </div>
-    );
-  }
+  if (gamesLoading || teamsLoading) return <LoadingState />;
+  if (gamesError || teamsError)
+    return <ErrorState message={gamesError || teamsError || ""} />;
 
   return (
-    <div style={{ padding: "36px 44px", maxWidth: 860, margin: "0 auto" }}>
-      <div style={{ marginBottom: 28 }}>
-        <div
-          style={{
-            fontFamily: "'Barlow Condensed',sans-serif",
-            fontWeight: 800,
-            fontSize: 26,
-            letterSpacing: 1.5,
-            textTransform: "uppercase",
-          }}
-        >
+    <div className="px-6 sm:px-11 py-9 max-w-[860px] mx-auto">
+      <header className="mb-7">
+        <h1 className="font-display font-extrabold text-[26px] tracking-wide uppercase">
           Tonight's Games
-        </div>
-        <div style={{ fontSize: 13, color: "#6B7590", marginTop: 4 }}>
+        </h1>
+        <p className="text-[13px] text-muted mt-1">
           April 25, 2026 · NBA Playoffs Round 1
-        </div>
-      </div>
+        </p>
+      </header>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          marginBottom: 44,
-        }}
-      >
+      <div className="flex flex-col gap-3.5 mb-11">
         {today.map((g) => (
           <GameCard
             key={g.id}
@@ -86,20 +39,10 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div
-        style={{
-          fontFamily: "'Barlow Condensed',sans-serif",
-          fontWeight: 700,
-          fontSize: 14,
-          letterSpacing: 1.6,
-          color: "#8A94AE",
-          textTransform: "uppercase",
-          marginBottom: 14,
-        }}
-      >
+      <div className="font-display font-bold text-sm tracking-wide text-faint uppercase mb-3.5">
         Upcoming
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="flex flex-col gap-3">
         {future.map((g) => (
           <GameCard
             key={g.id}

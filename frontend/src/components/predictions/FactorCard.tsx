@@ -19,77 +19,38 @@ export default function FactorCard({ factor, team1, team2 }: Props) {
         ? 2
         : 0;
   return (
-    <div
-      style={{
-        background: "#F8F9FC",
-        border: "1px solid #181E2C",
-        borderRadius: 10,
-        padding: "16px 18px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: 1.4,
-          color: "#8A94AE",
-          textTransform: "uppercase",
-          marginBottom: 12,
-        }}
-      >
+    <div className="bg-surface-2 border border-line rounded-xl px-[18px] py-4">
+      <div className="text-[10px] font-bold tracking-[1.4px] text-faint uppercase mb-3">
         {factor.label}
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-        }}
-      >
+      <div className="flex justify-between items-end">
         <div>
           <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 30,
-              color: edge === 1 ? team1.accent : "#2A3248",
-            }}
+            className="font-display font-extrabold text-[30px]"
+            style={{ color: edge === 1 ? team1.accent : "var(--color-ink)" }}
           >
             {factor.val1}
           </div>
           {edge === 1 && (
             <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: team1.accent,
-                letterSpacing: 1,
-              }}
+              className="text-[10px] font-bold tracking-wide"
+              style={{ color: team1.accent }}
             >
               ▲ EDGE
             </div>
           )}
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div className="text-right">
           <div
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 30,
-              color: edge === 2 ? team2.accent : "#2A3248",
-            }}
+            className="font-display font-extrabold text-[30px]"
+            style={{ color: edge === 2 ? team2.accent : "var(--color-ink)" }}
           >
             {factor.val2}
           </div>
           {edge === 2 && (
             <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: team2.accent,
-                letterSpacing: 1,
-                textAlign: "right",
-              }}
+              className="text-[10px] font-bold tracking-wide text-right"
+              style={{ color: team2.accent }}
             >
               ▲ EDGE
             </div>

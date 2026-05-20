@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { Game, UpcomingGame, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
 
@@ -17,174 +16,85 @@ export default function ScheduleRow({
   isLast,
   onSelect,
 }: Props) {
-  const [hov, setHov] = useState(false);
   const isPast = "score1" in game; // отличаем прошедший от предстоящего
+  const clickable = !isPast && !!onSelect;
 
   return (
     <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      onClick={() => !isPast && onSelect && onSelect(game as UpcomingGame)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "16px 24px",
-        background: hov && !isPast ? "#EEF1FF" : "transparent",
-        borderBottom: isLast ? "none" : "1px solid #181E2C",
-        cursor: !isPast && onSelect ? "pointer" : "default",
-        transition: "background 0.12s",
-      }}
+      onClick={() => clickable && onSelect!(game as UpcomingGame)}
+      className={`flex items-center px-6 py-4 transition-colors ${
+        isLast ? "" : "border-b border-line"
+      } ${clickable ? "cursor-pointer hover:bg-hover" : "cursor-default"}`}
     >
-      <div style={{ width: 80, fontSize: 12, color: "#6B7590", flexShrink: 0 }}>
-        {game.date}
-      </div>
+      <div className="w-20 text-xs text-muted shrink-0">{game.date}</div>
 
       {game.seasonType === "playoffs" && (
-        <span
-          style={{
-            padding: "2px 6px",
-            borderRadius: 4,
-            fontSize: 9,
-            fontWeight: 700,
-            letterSpacing: 0.5,
-            background: "#FEF3C7",
-            color: "#92400E",
-            textTransform: "uppercase",
-            flexShrink: 0,
-          }}
-        >
+        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-[0.5px]
+                         bg-warn-bg text-warn-fg uppercase shrink-0">
           PO
         </span>
       )}
 
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex-1 flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2">
           <TeamLogo team={team1} abbr={game.team1} size={28} />
-          <span
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            {team1.city}{" "}
-            <span style={{ color: team1.accent }}>{team1.name}</span>
+          <span className="font-display font-bold text-[15px]">
+            {team1.city} <span style={{ color: team1.accent }}>{team1.name}</span>
           </span>
         </div>
-        <span style={{ fontSize: 11, color: "#C8D0E0" }}>vs</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="text-[11px] text-faint">vs</span>
+        <div className="flex items-center gap-2">
           <TeamLogo team={team2} abbr={game.team2} size={28} />
-          <span
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            {team2.city}{" "}
-            <span style={{ color: team2.accent }}>{team2.name}</span>
+          <span className="font-display font-bold text-[15px]">
+            {team2.city} <span style={{ color: team2.accent }}>{team2.name}</span>
           </span>
         </div>
       </div>
 
       {isPast ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexShrink: 0,
-          }}
-        >
+        <div className="flex items-center gap-2.5 shrink-0">
           <span
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 22,
-              color: game.score1 > game.score2 ? team1.accent : "#8A909E",
-            }}
+            className="font-display font-extrabold text-[22px]"
+            style={{ color: game.score1 > game.score2 ? team1.accent : "var(--color-faint)" }}
           >
             {game.score1}
           </span>
-          <span style={{ color: "#C8D0E0", fontSize: 14 }}>—</span>
+          <span className="text-faint text-sm">—</span>
           <span
-            style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontWeight: 800,
-              fontSize: 22,
-              color: game.score2 > game.score1 ? team2.accent : "#8A909E",
-            }}
+            className="font-display font-extrabold text-[22px]"
+            style={{ color: game.score2 > game.score1 ? team2.accent : "var(--color-faint)" }}
           >
             {game.score2}
           </span>
-          <span
-            style={{
-              padding: "3px 8px",
-              background: "#F8F9FC",
-              borderRadius: 4,
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 1,
-              color: "#8A94AE",
-              marginLeft: 4,
-            }}
-          >
+          <span className="px-2 py-[3px] bg-surface-2 rounded text-[10px] font-bold
+                           tracking-wide text-faint ml-1">
             FINAL
           </span>
         </div>
       ) : (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#4A7FD4" }}>
+        <div className="flex items-center gap-3.5 shrink-0">
+          <span className="text-[13px] font-semibold text-info">
             {game.time}
           </span>
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <div className="flex gap-1 items-center">
             <span
-              style={{
-                fontFamily: "'Barlow Condensed',sans-serif",
-                fontWeight: 700,
-                fontSize: 14,
-                color: team1.accent,
-              }}
+              className="font-display font-bold text-sm"
+              style={{ color: team1.accent }}
             >
               {game.win1}%
             </span>
-            <span style={{ fontSize: 11, color: "#8A94AE" }}>·</span>
+            <span className="text-[11px] text-faint">·</span>
             <span
-              style={{
-                fontFamily: "'Barlow Condensed',sans-serif",
-                fontWeight: 700,
-                fontSize: 14,
-                color: team2.accent,
-              }}
+              className="font-display font-bold text-sm"
+              style={{ color: team2.accent }}
             >
               {100 - game.win1}%
             </span>
           </div>
           {onSelect && (
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#2E3650"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                 className="text-faint">
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           )}

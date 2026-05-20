@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload  # ← НОВОЕ
@@ -40,7 +40,7 @@ async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
     )
     player = result.scalar_one_or_none()
     if not player:
-        return None
+        raise HTTPException(status_code=404, detail="Player not found")
     return PlayerDetailSchema(
         id=player.id,
         nba_id=player.nba_id,

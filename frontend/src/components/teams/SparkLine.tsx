@@ -26,11 +26,7 @@ export default function Sparkline({
   const fill = `${d} L${pts[pts.length - 1][0]},${height} L${pts[0][0]},${height} Z`;
   const last = pts[pts.length - 1];
   return (
-    <svg
-      width={width}
-      height={height}
-      style={{ overflow: "visible", display: "block" }}
-    >
+    <svg width={width} height={height} className="overflow-visible block">
       <defs>
         <linearGradient
           id={`sg-${color.replace(/[^a-z0-9]/gi, "")}`}

@@ -39,8 +39,14 @@ export async function getTodayGames(): Promise<UpcomingGame[]> {
   return fetcher("/games/today");
 }
 
-export async function getPastGames(): Promise<PastGame[]> {
-  return fetcher("/games/past");
+export async function getPastGames(season?: string): Promise<PastGame[]> {
+  const qs = new URLSearchParams({ limit: "5000" });
+  if (season) qs.set("season", season);
+  return fetcher(`/games/past?${qs.toString()}`);
+}
+
+export async function getSeasons(): Promise<string[]> {
+  return fetcher("/games/seasons");
 }
 
 export async function getMatch(id: string): Promise<UpcomingGame> {
@@ -48,7 +54,7 @@ export async function getMatch(id: string): Promise<UpcomingGame> {
 }
 
 export async function getTeams(): Promise<Record<string, Team>> {
-  const list = await fetcher<(Team & { abbr: string })[]>("/teams");
+  const list = await fetcher<(Team & { abbr: string })[]>("/teams/");
   return Object.fromEntries(list.map((t) => [t.abbr, t]));
 }
 

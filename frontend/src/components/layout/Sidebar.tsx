@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import ThemeToggle from "../ui/ThemeToggle";
 
 const nav = [
   {
@@ -36,145 +38,105 @@ const nav = [
 const soon = ["Analytics"];
 
 export default function Sidebar() {
+  // на десктопе сайдбар всегда виден, на мобильных управляется этим стейтом
+  const [open, setOpen] = useState(false);
+
   return (
-    <div
-      style={{
-        width: 218,
-        background: "#FAFBFF",
-        borderRight: "1px solid #181E2C",
-        display: "flex",
-        flexDirection: "column",
-        flexShrink: 0,
-        overflow: "hidden",
-        boxSizing: "border-box",
-      }}
-    >
-      <div style={{ padding: "26px 22px", borderBottom: "1px solid #181E2C" }}>
-        <div
-          style={{
-            fontFamily: "'Barlow Condensed',sans-serif",
-            fontWeight: 900,
-            fontSize: 22,
-            letterSpacing: 2.5,
-            textTransform: "uppercase",
-          }}
-        >
-          Hoop<span style={{ color: "oklch(0.62 0.18 25)" }}>Stats</span>
-        </div>
-        <div
-          style={{
-            fontSize: 10,
-            letterSpacing: 1.8,
-            color: "#8A94AE",
-            marginTop: 3,
-          }}
-        >
-          NBA ANALYTICS
-        </div>
-      </div>
+    <>
+      {/* кнопка-бургер — только на мобильных */}
+      <button
+        type="button"
+        aria-label="Open menu"
+        onClick={() => setOpen(true)}
+        className="md:hidden fixed top-3 right-3 z-50 p-2 rounded-lg bg-surface
+                   border border-line shadow-[var(--shadow-pop)] text-ink"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M3 6h18M3 12h18M3 18h18" />
+        </svg>
+      </button>
 
-      <nav style={{ padding: "14px 10px", flex: 1 }}>
-        {nav.map((item) => (
-          <NavLink
-            key={item.id}
-            to={item.to}
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? "active" : ""}`
-            }
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 8,
-              marginBottom: 3,
-              background: isActive ? "oklch(0.90 0.04 220)" : "transparent",
-              border: `1px solid ${isActive ? "oklch(0.75 0.06 220)" : "transparent"}`,
-              color: isActive ? "#1C2235" : "#6B7590",
-              cursor: "pointer",
-              fontFamily: "'Barlow',sans-serif",
-              fontWeight: 500,
-              fontSize: 14,
-              textAlign: "left",
-              transition: "all 0.12s",
-              textDecoration: "none",
-              boxSizing: "border-box",
-            })}
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      {/* затемнение фона при открытом меню (только мобильные) */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
+        />
+      )}
+
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-40 w-[230px] shrink-0
+                    flex flex-col overflow-hidden
+                    bg-surface border-r border-line
+                    transition-transform duration-200
+                    ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+      >
+        {/* шапка / логотип */}
+        <div className="px-6 py-7 border-b border-line">
+          <div className="font-display font-black text-[23px] tracking-[2.5px] uppercase text-ink">
+            Hoop<span className="text-brand">Stats</span>
+          </div>
+          <div className="text-[10px] tracking-[2px] text-faint mt-1">
+            NBA ANALYTICS
+          </div>
+        </div>
+
+        {/* навигация */}
+        <nav className="px-3 py-4 flex-1">
+          {nav.map((item) => (
+            <NavLink
+              key={item.id}
+              to={item.to}
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 w-full px-3 py-2.5 rounded-[10px] mb-1
+                 text-sm font-medium transition-colors no-underline ${
+                   isActive
+                     ? "bg-active border border-active-border text-ink"
+                     : "border border-transparent text-muted hover:bg-hover hover:text-ink"
+                 }`
+              }
             >
-              <path d={item.icon} />
-            </svg>
-            {item.label}
-          </NavLink>
-        ))}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2"
+                   strokeLinecap="round" strokeLinejoin="round">
+                <path d={item.icon} />
+              </svg>
+              {item.label}
+            </NavLink>
+          ))}
 
-        <div style={{ height: 1, background: "#EDF0F8", margin: "12px 4px" }} />
+          <div className="h-px bg-line mx-1 my-3" />
 
-        {soon.map((label) => (
-          <div
-            key={label}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "10px 12px",
-              borderRadius: 8,
-              marginBottom: 3,
-              color: "#BDC4D6",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div
-                style={{
-                  width: 15,
-                  height: 15,
-                  background: "#EDF0F8",
-                  borderRadius: 3,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontFamily: "'Barlow',sans-serif", fontSize: 14 }}>
-                {label}
+          {soon.map((label) => (
+            <div
+              key={label}
+              className="flex items-center justify-between px-3 py-2.5 rounded-[10px] mb-1 text-faint"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-4 h-4 bg-line rounded-[4px] shrink-0" />
+                <span className="text-sm">{label}</span>
+              </div>
+              <span className="text-[9px] tracking-[1.2px] font-bold px-1.5 py-0.5
+                               rounded bg-surface-2 text-faint">
+                SOON
               </span>
             </div>
-            <span
-              style={{
-                fontSize: 9,
-                letterSpacing: 1.2,
-                color: "#E4E8F2",
-                fontWeight: 700,
-              }}
-            >
-              SOON
-            </span>
-          </div>
-        ))}
-      </nav>
+          ))}
+        </nav>
 
-      <div style={{ padding: "16px 22px", borderTop: "1px solid #181E2C" }}>
-        <div
-          style={{
-            fontSize: 10,
-            letterSpacing: 1.4,
-            color: "#BDC4D6",
-            fontWeight: 700,
-            marginBottom: 4,
-          }}
-        >
-          2025–26 SEASON
+        {/* подвал — сезон + переключатель темы */}
+        <div className="px-6 py-4 border-t border-line flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] tracking-[1.4px] text-faint font-bold mb-0.5">
+              2025–26 SEASON
+            </div>
+            <div className="text-xs text-muted">Playoffs · Round 1</div>
+          </div>
+          <ThemeToggle />
         </div>
-        <div style={{ fontSize: 12, color: "#8A94AE" }}>Playoffs · Round 1</div>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 }

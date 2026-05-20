@@ -98,7 +98,7 @@ async def sync_teams(db: AsyncSession):
 
     # получаем рекорды из standings
     try:
-        standings = leaguestandings.LeagueStandings(season="2025")
+        standings = leaguestandings.LeagueStandings(season="2025-26")
         data = standings.get_dict()
         headers = data["resultSets"][0]["headers"]
         rows = data["resultSets"][0]["rowSet"]
@@ -195,7 +195,7 @@ async def get_team_form(team_id: int) -> dict:
     await asyncio.sleep(0.6)
     log = teamgamelog.TeamGameLog(
         team_id=str(team_id),
-        season="2025"
+        season="2025-26"
     )
     data = log.get_dict()
     headers = data["resultSets"][0]["headers"]
@@ -230,7 +230,7 @@ async def sync_team_stats(db: AsyncSession):
             await asyncio.sleep(1.0)  # rate limit — увеличена пауза
             log = teamgamelog.TeamGameLog(
                 team_id=str(team.nba_id),
-                season="2025",
+                season="2025-26",
             )
             data = log.get_dict()
             result_sets = data.get("resultSets", [])
@@ -280,7 +280,7 @@ async def sync_team_stats(db: AsyncSession):
     print(f"Статистика команд синхронизирована: {success_count} успешно, {error_count} ошибок")
 
 
-async def sync_historical_games(db: AsyncSession, season: str = "2025"):
+async def sync_historical_games(db: AsyncSession, season: str = "2025-26"):
     """Загружает все игры сезона (regular + playoffs)
     
     NBA API использует формат года начала сезона:
@@ -348,7 +348,8 @@ async def sync_historical_games(db: AsyncSession, season: str = "2025"):
             time="Final",
             venue="",
             is_today=False,
-            season_type=determine_season_type(g1["GAME_DATE"]),
+            season=season,
+            season_type="regular",  # NBA API уже отфильтровал "Regular Season"
             score1=int(g1["PTS"]) if g1["PTS"] else None,
             score2=int(g2["PTS"]) if g2["PTS"] else None,
         ))
@@ -419,12 +420,13 @@ async def _sync_playoffs(db: AsyncSession, season: str):
             time="Final",
             venue="",
             is_today=False,
+            season=season,
             season_type="playoffs",
             score1=int(g1["PTS"]) if g1["PTS"] else None,
             score2=int(g2["PTS"]) if g2["PTS"] else None,
         ))
         count += 1
-    
+
     await db.commit()
     print(f"Загружено {count} игр плей-офф")
 
@@ -527,75 +529,58 @@ async def sync_injuries(db: AsyncSession):
     print(f"Загружено {count} записей о травмах")
 
 
-async def sync_players(db: AsyncSession, season: str = "2025"):
+async def sync_players(db: AsyncSession, season: str = "2025-26"):
     """Загружает игроков и их статистику из NBA API
-    
-    Использует PlayerStats endpoint для получения агрегированной
+
+    Использует LeagueDashPlayerStats endpoint для получения агрегированной
     статистики всех игроков за сезон.
     """
     print(f"Загрузка статистики игроков сезона {season}...")
-    
+
     try:
         await asyncio.sleep(1.0)
         stats = leaguedashplayerstats.LeagueDashPlayerStats(
             season=season,
-            season_type="Regular Season",
-            per_mode="PerGame",
+            season_type_all_star="Regular Season",
+            per_mode_detailed="PerGame",
         )
         data = stats.get_dict()
     except Exception as e:
         print(f"Ошибка при загрузке статистики игроков: {type(e).__name__}: {e}")
         return
-    
+
     result_sets = data.get("resultSets", [])
     if not result_sets:
         print("NBA API вернул пустой response для статистики игроков")
         return
-    
+
     headers = result_sets[0].get("headers", [])
     rows = result_sets[0].get("rowSet", [])
     print(f"NBA API вернул {len(rows)} записей игроков")
-    
+
     if not rows:
         print("Нет данных об игроках")
         return
-    
-    # Маппинг аббревиатур команд
-    TEAM_ABBR_MAP = {
-        "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
-        "Charlotte Hornets": "CHA", "Chicago Bulls": "CHI", "Cleveland Cavaliers": "CLE",
-        "Dallas Mavericks": "DAL", "Denver Nuggets": "DEN", "Detroit Pistons": "DET",
-        "Golden State Warriors": "GSW", "Houston Rockets": "HOU", "Indiana Pacers": "IND",
-        "LA Clippers": "LAC", "Los Angeles Lakers": "LAL", "Memphis Grizzlies": "MEM",
-        "Miami Heat": "MIA", "Milwaukee Bucks": "MIL", "Minnesota Timberwolves": "MIN",
-        "New Orleans Pelicans": "NOP", "New York Knicks": "NYK", "Oklahoma City Thunder": "OKC",
-        "Orlando Magic": "ORL", "Philadelphia 76ers": "PHI", "Phoenix Suns": "PHX",
-        "Portland Trail Blazers": "POR", "Sacramento Kings": "SAC", "San Antonio Spurs": "SAS",
-        "Toronto Raptors": "TOR", "Utah Jazz": "UTA", "Washington Wizards": "WAS",
-        "Team A": "TMA", "Team B": "TMB",
-    }
-    
+
     count_new = 0
     count_updated = 0
-    
+
     for row in rows:
         player_data = dict(zip(headers, row))
-        
+
         player_id = player_data.get("PLAYER_ID")
         if not player_id:
             continue
-        
-        team_name = player_data.get("TEAM_NAME", "")
-        team_abbr = TEAM_ABBR_MAP.get(team_name, player_data.get("TEAM_ABBREVIATION", "UNK"))
-        
-        position = player_data.get("POSITION", "")
-        if not position or position == "":
-            position = "N/A"
-        
+
+        team_abbr = player_data.get("TEAM_ABBREVIATION", "UNK")
+
+        position = "N/A"
+        jersey = None
+
         games_played = int(player_data.get("GP", 0))
         if games_played == 0:
             continue
-        
+
         try:
             pts = float(player_data.get("PTS", 0))
             reb = float(player_data.get("REB", 0))
@@ -608,13 +593,12 @@ async def sync_players(db: AsyncSession, season: str = "2025"):
             mins = float(player_data.get("MIN", 0)) if player_data.get("MIN") else 0.0
         except (ValueError, TypeError):
             continue
-        
+
         name = player_data.get("PLAYER_NAME", "Unknown")
-        jersey = str(player_data.get("JERSEY_NUMBER", "")) if player_data.get("JERSEY_NUMBER") else None
-        
+
         existing = await db.execute(select(Player).where(Player.nba_id == int(player_id)))
         player = existing.scalar_one_or_none()
-        
+
         if not player:
             db.add(Player(
                 nba_id=int(player_id),
@@ -637,8 +621,9 @@ async def sync_players(db: AsyncSession, season: str = "2025"):
             count_new += 1
         else:
             player.team_abbr = team_abbr
-            player.position = position
-            player.jersey_number = jersey
+            # position / jersey_number НЕ трогаем: LeagueDashPlayerStats их не
+            # отдаёт (position здесь всегда "N/A"). Эти поля наполняются
+            # отдельно через backfill_positions.py — перезаписывать нельзя.
             player.games_played = games_played
             player.pts = pts
             player.reb = reb
@@ -651,6 +636,6 @@ async def sync_players(db: AsyncSession, season: str = "2025"):
             player.mins = mins
             player.recent_games = games_played
             count_updated += 1
-    
+
     await db.commit()
     print(f"Игроки синхронизированы: {count_new} новых, {count_updated} обновлено")

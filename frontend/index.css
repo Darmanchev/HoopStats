@@ -1,1 +1,85 @@
 @import "tailwindcss";
+
+/* Тёмная тема включается классом .dark на <html>.
+   Утилиты Tailwind ссылаются на var(--color-*), поэтому для смены темы
+   достаточно переопределить переменные — классы в компонентах не меняются. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Barlow Condensed", sans-serif;
+
+  /* --- Семантические цвета: значения СВЕТЛОЙ темы --- */
+  --color-bg: #F4F6FA;          /* фон страницы */
+  --color-surface: #FFFFFF;     /* карточки */
+  --color-surface-2: #F0F2F8;   /* вложенные блоки, статы */
+  --color-hover: #F4F6FF;       /* фон при наведении */
+  --color-ink: #1B2233;         /* основной текст */
+  --color-muted: #5C6580;       /* вторичный текст */
+  --color-faint: #8B94AC;       /* третичный текст */
+  --color-line: #E5E8F0;        /* мягкие границы */
+  --color-line-strong: #D2D7E2; /* акцентные границы */
+
+  --color-brand: oklch(0.58 0.19 25);
+  --color-info: oklch(0.55 0.15 250);
+  --color-active: oklch(0.95 0.025 255);
+  --color-active-border: oklch(0.86 0.05 255);
+
+  /* статусные пары (бейджи травм / типа сезона) */
+  --color-danger-bg: #FBE0E0;  --color-danger-fg: #B42318;
+  --color-warn-bg:   #FAEDC6;  --color-warn-fg:   #92400E;
+  --color-accent-bg: #DCE9FD;  --color-accent-fg: #1E40AF;
+  --color-violet-bg: #E3E5FB;  --color-violet-fg: #3730A3;
+  --color-win-bg:    #D6F0DC;  --color-win-fg:    #1B7A3E;
+}
+
+/* мягкие тени-токены (через var → переключаются вместе с темой) */
+:root {
+  color-scheme: light;
+  --shadow-card: 0 1px 2px rgba(20, 26, 46, 0.05), 0 4px 14px rgba(20, 26, 46, 0.07);
+  --shadow-card-hover: 0 10px 30px rgba(20, 26, 46, 0.14);
+  --shadow-pop: 0 6px 22px rgba(20, 26, 46, 0.12);
+}
+
+/* --- Переопределения для ТЁМНОЙ темы (html.dark — выше специфичность) --- */
+html.dark {
+  color-scheme: dark;
+
+  --color-bg: #0D1016;
+  --color-surface: #161B24;
+  --color-surface-2: #1E2530;
+  --color-hover: #1E2634;
+  --color-ink: #E8EBF2;
+  --color-muted: #99A2B7;
+  --color-faint: #69728A;
+  --color-line: #29303D;
+  --color-line-strong: #3A4252;
+
+  --color-brand: oklch(0.66 0.17 25);
+  --color-info: oklch(0.72 0.12 250);
+  --color-active: oklch(0.32 0.055 255);
+  --color-active-border: oklch(0.46 0.08 255);
+
+  --color-danger-bg: #3A1C1D;  --color-danger-fg: #F4A8A2;
+  --color-warn-bg:   #382C12;  --color-warn-fg:   #F3D38A;
+  --color-accent-bg: #16294A;  --color-accent-fg: #9DC0F5;
+  --color-violet-bg: #232453;  --color-violet-fg: #B9BCF2;
+  --color-win-bg:    #16321F;  --color-win-fg:    #74D699;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.42);
+  --shadow-card-hover: 0 14px 38px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 8px 26px rgba(0, 0, 0, 0.5);
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg);
+}
+
+/* плавная смена темы — только фон и границы, чтобы не мешать hover-анимациям */
+body * {
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+              color 0.18s ease;
+}

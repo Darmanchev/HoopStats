@@ -9,65 +9,30 @@ interface Props {
 export default function WinBar({ pct1, team1, team2 }: Props) {
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          gap: 2,
-          height: 5,
-          borderRadius: 3,
-          overflow: "hidden",
-          marginBottom: 8,
-        }}
-      >
+      <div className="flex gap-0.5 h-[5px] rounded-[3px] overflow-hidden mb-2">
+        {/* ширина и цвет приходят из данных — оставляем инлайн */}
         <div
-          style={{
-            width: `${pct1}%`,
-            background: team1.accent,
-            transition: "width 0.9s ease",
-          }}
+          className="transition-[width] duration-[900ms] ease-out"
+          style={{ width: `${pct1}%`, background: team1.accent }}
         />
         <div
-          style={{
-            width: `${100 - pct1}%`,
-            background: team2.accent,
-            transition: "width 0.9s ease",
-          }}
+          className="transition-[width] duration-[900ms] ease-out"
+          style={{ width: `${100 - pct1}%`, background: team2.accent }}
         />
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+      <div className="flex justify-between items-center">
         <span
-          style={{
-            fontFamily: "'Barlow Condensed',sans-serif",
-            fontWeight: 700,
-            fontSize: 14,
-            color: team1.accent,
-          }}
+          className="font-display font-bold text-sm"
+          style={{ color: team1.accent }}
         >
           {pct1}%
         </span>
-        <span
-          style={{
-            fontSize: 10,
-            letterSpacing: 1.2,
-            color: "#8A94AE",
-            fontWeight: 700,
-          }}
-        >
+        <span className="text-[10px] tracking-[1.2px] text-faint font-bold">
           WIN PROBABILITY
         </span>
         <span
-          style={{
-            fontFamily: "'Barlow Condensed',sans-serif",
-            fontWeight: 700,
-            fontSize: 14,
-            color: team2.accent,
-          }}
+          className="font-display font-bold text-sm"
+          style={{ color: team2.accent }}
         >
           {100 - pct1}%
         </span>
