@@ -49,6 +49,7 @@ export interface UpcomingGame {
   time: string;
   venue: string;
   seasonType: "regular" | "playoffs";
+  season: string;
   win1: number;
   prediction: string;
   factors: Factor[];
@@ -61,6 +62,7 @@ export interface PastGame {
   team2: string;
   date: string;
   seasonType: "regular" | "playoffs";
+  season: string;
   score1: number;
   score2: number;
 }

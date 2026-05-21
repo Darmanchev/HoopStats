@@ -39,14 +39,14 @@ export default function ScheduleRow({
         <div className="flex items-center gap-2">
           <TeamLogo team={team1} abbr={game.team1} size={28} />
           <span className="font-display font-bold text-[15px]">
-            {team1.city} <span style={{ color: team1.accent }}>{team1.name}</span>
+            {team1.city} {team1.name}
           </span>
         </div>
         <span className="text-[11px] text-faint">vs</span>
         <div className="flex items-center gap-2">
           <TeamLogo team={team2} abbr={game.team2} size={28} />
           <span className="font-display font-bold text-[15px]">
-            {team2.city} <span style={{ color: team2.accent }}>{team2.name}</span>
+            {team2.city} {team2.name}
           </span>
         </div>
       </div>
@@ -55,14 +55,28 @@ export default function ScheduleRow({
         <div className="flex items-center gap-2.5 shrink-0">
           <span
             className="font-display font-extrabold text-[22px]"
-            style={{ color: game.score1 > game.score2 ? team1.accent : "var(--color-faint)" }}
+            style={{
+              color:
+                game.score1 > game.score2
+                  ? "var(--color-win-fg)"
+                  : game.score1 < game.score2
+                    ? "var(--color-danger-fg)"
+                    : "var(--color-faint)",
+            }}
           >
             {game.score1}
           </span>
           <span className="text-faint text-sm">—</span>
           <span
             className="font-display font-extrabold text-[22px]"
-            style={{ color: game.score2 > game.score1 ? team2.accent : "var(--color-faint)" }}
+            style={{
+              color:
+                game.score2 > game.score1
+                  ? "var(--color-win-fg)"
+                  : game.score2 < game.score1
+                    ? "var(--color-danger-fg)"
+                    : "var(--color-faint)",
+            }}
           >
             {game.score2}
           </span>

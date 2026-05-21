@@ -25,7 +25,7 @@ export default function WinBar({ pct1, team1, team2 }: Props) {
           className="font-display font-bold text-sm"
           style={{ color: team1.accent }}
         >
-          {pct1}%
+          {pct1.toFixed(1)}%
         </span>
         <span className="text-[10px] tracking-[1.2px] text-faint font-bold">
           WIN PROBABILITY
@@ -34,7 +34,7 @@ export default function WinBar({ pct1, team1, team2 }: Props) {
           className="font-display font-bold text-sm"
           style={{ color: team2.accent }}
         >
-          {100 - pct1}%
+          {(100 - pct1).toFixed(1)}%
         </span>
       </div>
     </div>

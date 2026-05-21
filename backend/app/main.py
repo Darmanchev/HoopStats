@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from .routers import teams, games, injuries, players
+from .routers import teams, games, injuries, players, analytics
 from .scheduler import start_scheduler, stop_scheduler
 
 @asynccontextmanager
@@ -25,6 +25,7 @@ app.include_router(teams.router)
 app.include_router(games.router)
 app.include_router(injuries.router)
 app.include_router(players.router)
+app.include_router(analytics.router)
 
 @app.get("/health")
 async def health():

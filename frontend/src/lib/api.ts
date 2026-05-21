@@ -92,3 +92,16 @@ export async function getPlayers(params?: {
 export async function getPlayer(id: number): Promise<PlayerDetail> {
   return fetcher(`/players/${id}`);
 }
+
+export interface EloEntry {
+  teamAbbr: string;
+  elo: number;
+}
+
+export async function getElo(): Promise<EloEntry[]> {
+  return fetcher("/analytics/elo");
+}
+
+export async function getLeaders(): Promise<Record<string, Player[]>> {
+  return fetcher("/analytics/leaders");
+}

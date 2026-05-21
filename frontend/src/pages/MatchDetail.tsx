@@ -63,7 +63,7 @@ export default function MatchDetail() {
           <div className="text-center flex-1">
             <TeamLogo team={t1} abbr={game.team1} size={68} />
             <div className="font-display font-extrabold text-[26px] mt-3">{t1.city}</div>
-            <div className="font-display font-bold text-[20px]" style={{ color: t1.accent }}>
+            <div className="font-display font-bold text-[20px]">
               {t1.name}
             </div>
             <div className="text-[13px] text-muted mt-1">{t1.record}</div>
@@ -77,7 +77,7 @@ export default function MatchDetail() {
           <div className="text-center flex-1">
             <TeamLogo team={t2} abbr={game.team2} size={68} />
             <div className="font-display font-extrabold text-[26px] mt-3">{t2.city}</div>
-            <div className="font-display font-bold text-[20px]" style={{ color: t2.accent }}>
+            <div className="font-display font-bold text-[20px]">
               {t2.name}
             </div>
             <div className="text-[13px] text-muted mt-1">{t2.record}</div>
@@ -112,7 +112,7 @@ export default function MatchDetail() {
             <div key={abbr} className="bg-surface border border-line rounded-xl px-[22px] py-5
                                        shadow-[var(--shadow-card)]">
               <div className="flex justify-between items-center mb-3.5">
-                <span className="font-display font-bold text-[15px]" style={{ color: t.accent }}>
+                <span className="font-display font-bold text-[15px] text-ink">
                   {t.city} {t.name}
                 </span>
                 <span className="text-[10px] tracking-[1.2px] text-faint font-bold uppercase">
@@ -129,7 +129,13 @@ export default function MatchDetail() {
                   <div className="text-[10px] tracking-[1.2px] text-faint font-bold uppercase mb-2">
                     PTS — LAST 10 GAMES
                   </div>
-                  <SparkLine data={s.lastScores} color={t.accent} width={210} height={52} />
+                  <SparkLine
+                    data={[...s.lastScores].reverse()}
+                    color={t.accent}
+                    width={300}
+                    height={64}
+                    showValues
+                  />
                 </>
               ) : (
                 <div className="text-[13px] text-faint">Loading stats…</div>

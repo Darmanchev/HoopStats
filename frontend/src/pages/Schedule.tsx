@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { UpcomingGame, Game } from "../types";
 import { useGames } from "../hooks/useGames";
+import { useSeasons } from "../hooks/useSeasons";
 import { useTeams } from "../hooks/useTeams";
-import ScheduleRow from "../components/matches/ScheduleRow";
+import ScheduleCard from "../components/matches/ScheduleCard";
 import { LoadingState, ErrorState } from "../components/ui/PageState";
 
 type TypeFilter = "all" | "upcoming" | "results";
@@ -26,9 +27,9 @@ function getMonthKey(dateStr: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function getMonthLabel(dateStr: string): string {
+function getDayHeading(dateStr: string): string {
   const d = parseDate(dateStr);
-  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return `${DAYS[d.getDay()]} · ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
 function getDayLabel(dateStr: string): string {
@@ -48,12 +49,17 @@ export default function Schedule() {
   const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [dayFilter, setDayFilter] = useState<string>("all");
+  const [season, setSeason] = useState<string>("all");
 
-  const { upcoming, past, loading: gamesLoading, error: gamesError } = useGames();
+  const seasons = useSeasons();
+  const { upcoming, past, loading: gamesLoading, error: gamesError } = useGames(
+    season === "all" ? undefined : season
+  );
   const { teams, loading: teamsLoading, error: teamsError } = useTeams();
 
   const all: Game[] = useMemo(
-    () => [...past, ...upcoming].sort((a, b) => (a.date > b.date ? 1 : -1)),
+    // по убыванию даты — последние матчи сверху
+    () => [...past, ...upcoming].sort((a, b) => (a.date < b.date ? 1 : -1)),
     [past, upcoming]
   );
 
@@ -80,9 +86,9 @@ export default function Schedule() {
   const grouped = useMemo(() => {
     const groups: Record<string, Game[]> = {};
     filtered.forEach((g) => {
-      const key = getMonthLabel(g.date);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(g);
+      // ключ — сама дата (YYYY-MM-DD): сортируема и уникальна на день
+      if (!groups[g.date]) groups[g.date] = [];
+      groups[g.date].push(g);
     });
     return groups;
   }, [filtered]);
@@ -92,22 +98,23 @@ export default function Schedule() {
     return <ErrorState message={gamesError || teamsError || ""} />;
 
   const selectCls =
-    "px-3 py-[7px] rounded-[7px] text-xs border border-line text-ink bg-surface cursor-pointer";
+    "px-3 py-[7px] rounded-[7px] text-xs border border-line text-ink bg-surface cursor-pointer shrink-0";
 
   return (
-    <div className="px-6 sm:px-11 py-9 max-w-[900px] mx-auto">
+    <div className="px-6 sm:px-11 py-9 max-w-[1100px] mx-auto">
       <header className="mb-5">
         <h1 className="font-display font-extrabold text-[26px] tracking-wide uppercase">
           Schedule
         </h1>
         <p className="text-[13px] text-muted mt-1">
-          2025–26 NBA Season · {filtered.length} games
+          {season === "all" ? "All seasons" : `${season} NBA Season`} ·{" "}
+          {filtered.length} games
         </p>
       </header>
 
-      {/* фильтры */}
-      <div className="flex gap-2.5 mb-6 items-center flex-wrap">
-        <div className="flex gap-1">
+      {/* фильтры — одна строка, при нехватке ширины прокручивается по горизонтали */}
+      <div className="flex gap-2.5 mb-6 items-center flex-nowrap overflow-x-auto pb-1">
+        <div className="flex gap-1 shrink-0">
           {(["all", "upcoming", "results"] as TypeFilter[]).map((f) => (
             <button
               key={f}
@@ -124,7 +131,7 @@ export default function Schedule() {
           ))}
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex gap-1 shrink-0">
           {(["all", "regular", "playoffs"] as SeasonFilter[]).map((s) => (
             <button
               key={s}
@@ -140,6 +147,22 @@ export default function Schedule() {
             </button>
           ))}
         </div>
+
+        <select
+          value={season}
+          onChange={(e) => {
+            setSeason(e.target.value);
+            setMonthFilter("all"); // месяцы зависят от сезона
+          }}
+          className={selectCls}
+        >
+          <option value="all">All seasons</option>
+          {seasons.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
 
         <select
           value={monthFilter}
@@ -177,7 +200,7 @@ export default function Schedule() {
               setDayFilter("all");
               setSeasonFilter("all");
             }}
-            className="px-3 py-[7px] rounded-[7px] text-[11px] font-bold cursor-pointer
+            className="px-3 py-[7px] rounded-[7px] text-[11px] font-bold cursor-pointer shrink-0
                        bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink transition-colors"
           >
             Clear
@@ -189,46 +212,27 @@ export default function Schedule() {
       {Object.keys(grouped).length === 0 ? (
         <div className="text-center py-12 text-faint">No games found</div>
       ) : (
-        Object.entries(grouped).map(([monthLabel, games]) => {
-          // Бейдж сезона показываем только если ВСЕ игры месяца одного типа,
-          // иначе games[0] солгал бы про смешанный месяц.
-          const seasonType = games.every((g) => g.seasonType === games[0]?.seasonType)
-            ? games[0]?.seasonType
-            : null;
-          return (
-          <div key={monthLabel} className="mb-7">
-            <div className="flex items-center gap-2.5 mb-2.5 pl-1">
+        Object.entries(grouped).map(([day, games]) => (
+          <div key={day} className="mb-7">
+            <div className="flex items-baseline gap-2.5 mb-3 pl-1">
               <div className="font-display font-bold text-base tracking-wide text-faint uppercase">
-                {monthLabel}
+                {getDayHeading(day)}
               </div>
-              {seasonType && (
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-[0.5px] uppercase ${
-                    seasonType === "playoffs"
-                      ? "bg-warn-bg text-warn-fg"
-                      : "bg-accent-bg text-accent-fg"
-                  }`}
-                >
-                  {seasonType === "playoffs" ? "Playoffs" : "Regular"}
-                </span>
-              )}
+              <div className="text-xs text-faint">{games.length} games</div>
             </div>
-            <div className="bg-surface border border-line rounded-2xl overflow-hidden
-                            shadow-[var(--shadow-card)]">
-              {games.map((g, idx) => (
-                <ScheduleRow
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {games.map((g) => (
+                <ScheduleCard
                   key={g.id}
                   game={g}
                   team1={teams[g.team1]}
                   team2={teams[g.team2]}
-                  isLast={idx === games.length - 1}
                   onSelect={(game: UpcomingGame) => navigate(`/match/${game.id}`)}
                 />
               ))}
             </div>
           </div>
-          );
-        })
+        ))
       )}
     </div>
   );

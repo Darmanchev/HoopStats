@@ -9,7 +9,7 @@ from nba_api.stats.endpoints import leaguegamefinder
 from nba_api.stats.endpoints import leaguedashplayerstats
 from nba_api.stats.endpoints import commonplayerinfo
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from ..models.team_stats import TeamStats
 from ..models.team import Team
 from ..models.game import Game
@@ -156,6 +156,9 @@ async def sync_games(db: AsyncSession):
             print("Сегодня игр нет")
             return
 
+        # сбрасываем устаревший флаг is_today (остаётся от прошлых синков)
+        await db.execute(update(Game).values(is_today=False))
+
         for g in games:
             game_id = str(g["gameId"])
             home = g["homeTeam"]
@@ -213,6 +216,30 @@ async def get_team_form(team_id: int) -> dict:
         "last_scores": scores,   # последние 10 счетов
     }
 
+def _parse_log_date(s: str) -> datetime:
+    """Парсит GAME_DATE из TeamGameLog ('APR 13, 2026') для сортировки по дате."""
+    for fmt in ("%b %d, %Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s.strip(), fmt)
+        except (ValueError, AttributeError):
+            continue
+    return datetime.min
+
+
+def _fetch_team_log(nba_id: int, season: str, season_type: str) -> list[dict]:
+    """Игры команды одного типа сезона (Regular Season / Playoffs) как список словарей."""
+    log = teamgamelog.TeamGameLog(
+        team_id=str(nba_id),
+        season=season,
+        season_type_all_star=season_type,
+    )
+    rs = log.get_dict().get("resultSets", [])
+    if not rs:
+        return []
+    headers = rs[0].get("headers", [])
+    return [dict(zip(headers, r)) for r in rs[0].get("rowSet", [])]
+
+
 async def sync_team_stats(db: AsyncSession):
     """Загружает форму и последние счета для всех команд"""
     result = await db.execute(select(Team))
@@ -227,32 +254,30 @@ async def sync_team_stats(db: AsyncSession):
             continue
 
         try:
-            await asyncio.sleep(1.0)  # rate limit — увеличена пауза
-            log = teamgamelog.TeamGameLog(
-                team_id=str(team.nba_id),
-                season="2025-26",
-            )
-            data = log.get_dict()
-            result_sets = data.get("resultSets", [])
-            if not result_sets:
-                print(f"{team.abbr}: нет данных в response")
-                error_count += 1
-                continue
-            
-            headers = result_sets[0].get("headers", [])
-            rows = result_sets[0].get("rowSet", [])[:10]
-            
-            if not rows:
+            # тянем регулярку И плей-офф — чтобы "последние" игры были
+            # реально последними, а не последними только в регулярке
+            games: list[dict] = []
+            for season_type in ("Regular Season", "Playoffs"):
+                await asyncio.sleep(1.0)  # rate limit
+                try:
+                    games += _fetch_team_log(team.nba_id, "2025-26", season_type)
+                except Exception as e:
+                    # у команды может не быть игр плей-офф — это нормально
+                    print(f"{team.abbr} ({season_type}): {type(e).__name__}: {e}")
+
+            if not games:
                 print(f"{team.abbr}: нет игр в логе")
                 error_count += 1
                 continue
 
-            form = []
-            scores = []
-            for row in rows:
-                game = dict(zip(headers, row))
-                form.append(game["WL"])
-                scores.append(int(game["PTS"]))
+            # сортируем по дате — реально последние игры сверху
+            games.sort(
+                key=lambda g: _parse_log_date(g.get("GAME_DATE", "")),
+                reverse=True,
+            )
+            recent = games[:10]
+            form = [g["WL"] for g in recent]
+            scores = [int(g["PTS"]) for g in recent]
 
             existing = await db.execute(
                 select(TeamStats).where(TeamStats.team_abbr == team.abbr)
@@ -336,8 +361,18 @@ async def sync_historical_games(db: AsyncSession, season: str = "2025-26"):
         g1 = dict(zip(headers, pair[0]))
         g2 = dict(zip(headers, pair[1]))
 
+        score1 = int(g1["PTS"]) if g1["PTS"] else None
+        score2 = int(g2["PTS"]) if g2["PTS"] else None
+
         existing = await db.execute(select(Game).where(Game.id == game_id))
-        if existing.scalar_one_or_none():
+        existing_game = existing.scalar_one_or_none()
+        if existing_game:
+            # игра уже в БД — снимаем is_today и добиваем счёт, если её
+            # сохранили без него (например, как "сегодняшнюю" из scoreboard)
+            existing_game.is_today = False
+            if existing_game.score1 is None and score1 is not None:
+                existing_game.score1 = score1
+                existing_game.score2 = score2
             continue
 
         db.add(Game(
@@ -350,8 +385,8 @@ async def sync_historical_games(db: AsyncSession, season: str = "2025-26"):
             is_today=False,
             season=season,
             season_type="regular",  # NBA API уже отфильтровал "Regular Season"
-            score1=int(g1["PTS"]) if g1["PTS"] else None,
-            score2=int(g2["PTS"]) if g2["PTS"] else None,
+            score1=score1,
+            score2=score2,
         ))
         count += 1
 
@@ -408,10 +443,20 @@ async def _sync_playoffs(db: AsyncSession, season: str):
         g1 = dict(zip(headers, pair[0]))
         g2 = dict(zip(headers, pair[1]))
         
+        score1 = int(g1["PTS"]) if g1["PTS"] else None
+        score2 = int(g2["PTS"]) if g2["PTS"] else None
+
         existing = await db.execute(select(Game).where(Game.id == game_id))
-        if existing.scalar_one_or_none():
+        existing_game = existing.scalar_one_or_none()
+        if existing_game:
+            # игра уже в БД — снимаем is_today, чиним тип сезона и добиваем счёт
+            existing_game.is_today = False
+            existing_game.season_type = "playoffs"
+            if existing_game.score1 is None and score1 is not None:
+                existing_game.score1 = score1
+                existing_game.score2 = score2
             continue
-        
+
         db.add(Game(
             id=game_id,
             team1=g1["TEAM_ABBREVIATION"],
@@ -422,8 +467,8 @@ async def _sync_playoffs(db: AsyncSession, season: str):
             is_today=False,
             season=season,
             season_type="playoffs",
-            score1=int(g1["PTS"]) if g1["PTS"] else None,
-            score2=int(g2["PTS"]) if g2["PTS"] else None,
+            score1=score1,
+            score2=score2,
         ))
         count += 1
 
@@ -639,3 +684,126 @@ async def sync_players(db: AsyncSession, season: str = "2025-26"):
 
     await db.commit()
     print(f"Игроки синхронизированы: {count_new} новых, {count_updated} обновлено")
+
+
+SCHEDULE_URL = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json"
+
+
+def _schedule_season_type(game_id: str) -> str:
+    """Тип сезона по NBA game id (3-й символ: 2=регулярка, 4=плей-офф, 5=плей-ин)."""
+    return "playoffs" if game_id[2:3] in ("4", "5") else "regular"
+
+
+async def sync_schedule(db: AsyncSession):
+    """Загружает будущие (ещё не сыгранные) игры из расписания NBA.
+
+    LeagueGameFinder отдаёт только сыгранные игры, поэтому предстоящие
+    матчи берём из публичного расписания NBA (CDN). Сохраняются без счёта
+    (score1=NULL) — то есть как "upcoming".
+    """
+    print("Загрузка расписания NBA...")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Referer": "https://www.nba.com/",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(SCHEDULE_URL, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        print(f"Ошибка при загрузке расписания: {type(e).__name__}: {e}")
+        return
+
+    league = data.get("leagueSchedule", {})
+    season = league.get("seasonYear", "2025-26")
+    game_dates = league.get("gameDates", [])
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    count_new = 0
+    count_updated = 0
+
+    for day in game_dates:
+        for g in day.get("games", []):
+            # gameStatus: 1 = запланирована, 2 = идёт, 3 = завершена.
+            # Берём только ещё не сыгранные.
+            if g.get("gameStatus") != 1:
+                continue
+
+            game_id = str(g.get("gameId", ""))
+            date = (g.get("gameDateEst") or "")[:10]
+            home = (g.get("homeTeam") or {}).get("teamTricode")
+            away = (g.get("awayTeam") or {}).get("teamTricode")
+            if not game_id or not date or not home or not away:
+                continue
+
+            existing = await db.execute(select(Game).where(Game.id == game_id))
+            game = existing.scalar_one_or_none()
+
+            if game:
+                # уже завершённую игру расписанием не перетираем
+                if game.score1 is not None:
+                    continue
+                game.date = date
+                game.time = g.get("gameStatusText", "")
+                game.venue = g.get("arenaName", "") or ""
+                game.is_today = date == today
+                count_updated += 1
+            else:
+                db.add(Game(
+                    id=game_id,
+                    team1=away,
+                    team2=home,
+                    date=date,
+                    time=g.get("gameStatusText", ""),
+                    venue=g.get("arenaName", "") or "",
+                    is_today=date == today,
+                    season=season,
+                    season_type=_schedule_season_type(game_id),
+                    win1=50.0,  # расписание не даёт прогноз — нейтральные 50/50
+                    score1=None,
+                    score2=None,
+                ))
+                count_new += 1
+
+    await db.commit()
+    print(f"Расписание загружено: {count_new} новых, {count_updated} обновлено")
+
+
+async def sync_predictions(db: AsyncSession):
+    """Считает ML-прогнозы (win1 + текст) для всех предстоящих игр.
+
+    Требует обученную модель (backend/train_model.py). Если её нет —
+    функция мягко завершится без изменений.
+    """
+    from app.ml.features import build_state
+    from app.ml.predict import predict_game
+
+    rows = (await db.execute(select(Game))).scalars().all()
+    played = [
+        {"id": g.id, "team1": g.team1, "team2": g.team2, "date": g.date,
+         "score1": g.score1, "score2": g.score2, "season": g.season}
+        for g in rows if g.score1 is not None and g.score2 is not None
+    ]
+    upcoming = [g for g in rows if g.score1 is None]
+
+    if not upcoming:
+        print("Нет предстоящих игр для прогноза")
+        return
+
+    state = build_state(played)
+    count = 0
+    for g in upcoming:
+        try:
+            win1, text = predict_game(state, g.team1, g.team2, g.date)
+            g.win1 = win1
+            g.prediction = text
+            count += 1
+        except FileNotFoundError as e:
+            print(f"Прогноз пропущен: {e}")
+            return
+        except Exception as e:
+            print(f"Прогноз {g.id}: {type(e).__name__}: {e}")
+
+    await db.commit()
+    print(f"Прогнозы обновлены: {count} игр")

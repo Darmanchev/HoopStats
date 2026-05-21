@@ -38,7 +38,7 @@ export default function GameCard({ game, team1, team2, onClick }: Props) {
         <TeamLogo team={team1} abbr={game.team1} size={46} />
         <div className="flex-1">
           <div className="font-display font-bold text-[19px] leading-[1.1]">
-            {team1.city} <span style={{ color: team1.accent }}>{team1.name}</span>
+            {team1.city} {team1.name}
           </div>
           <div className="text-xs text-muted mt-[3px]">{team1.record}</div>
         </div>
@@ -49,7 +49,7 @@ export default function GameCard({ game, team1, team2, onClick }: Props) {
 
         <div className="flex-1 text-right">
           <div className="font-display font-bold text-[19px] leading-[1.1]">
-            <span style={{ color: team2.accent }}>{team2.name}</span> {team2.city}
+            {team2.name} {team2.city}
           </div>
           <div className="text-xs text-muted mt-[3px]">{team2.record}</div>
         </div>

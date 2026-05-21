@@ -1,5 +1,7 @@
 import { useInjuries } from "../hooks/useInjuries";
+import { useTeams } from "../hooks/useTeams";
 import { useState } from "react";
+import TeamLogo from "../components/teams/TeamLogo";
 import { LoadingState, ErrorState } from "../components/ui/PageState";
 
 type StatusFilter = "all" | "Out" | "Doubtful" | "Questionable" | "Day-to-Day";
@@ -14,6 +16,7 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 
 export default function Injuries() {
   const { injuries, loading, error } = useInjuries();
+  const { teams, loading: teamsLoading } = useTeams();
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
 
@@ -26,7 +29,7 @@ export default function Injuries() {
     return matchStatus && matchSearch;
   });
 
-  if (loading) return <LoadingState />;
+  if (loading || teamsLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
   return (
@@ -86,8 +89,13 @@ export default function Injuries() {
                   idx < filtered.length - 1 ? "border-b border-line" : ""
                 }`}
               >
-                <div className="w-[50px] shrink-0">
-                  <span className="font-display font-bold text-base text-ink">
+                <div className="w-[56px] shrink-0 flex flex-col items-center gap-1">
+                  <TeamLogo
+                    team={teams[injury.teamAbbr]}
+                    abbr={injury.teamAbbr}
+                    size={34}
+                  />
+                  <span className="font-display font-bold text-[11px] text-faint">
                     {injury.teamAbbr}
                   </span>
                 </div>

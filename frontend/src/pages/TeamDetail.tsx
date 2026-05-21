@@ -52,8 +52,7 @@ export default function TeamDetail() {
         <TeamLogo team={team} abbr={team.abbr} size={80} />
         <div>
           <div className="font-display font-extrabold text-[32px]">
-            {team.city}{" "}
-            <span style={{ color: team.accent }}>{team.name}</span>
+            {team.city} {team.name}
           </div>
           <div className="text-base text-muted mt-1">
             {team.record} · {winPct}%
@@ -76,7 +75,13 @@ export default function TeamDetail() {
           <div className="text-[11px] tracking-[1.2px] text-faint font-bold uppercase mb-3">
             Points — Last 10 Games
           </div>
-          <SparkLine data={stats.lastScores} color={team.accent} width={600} height={80} />
+          <SparkLine
+            data={[...stats.lastScores].reverse()}
+            color={team.accent}
+            width={600}
+            height={92}
+            showValues
+          />
         </div>
       ) : (
         <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-xl px-7 py-6 text-center text-faint">

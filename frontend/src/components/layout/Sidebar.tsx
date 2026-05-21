@@ -33,9 +33,13 @@ const nav = [
     icon: "M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
     to: "/injuries",
   },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: "M18 20V10M12 20V4M6 20v-6",
+    to: "/analytics",
+  },
 ];
-
-const soon = ["Analytics"];
 
 export default function Sidebar() {
   // на десктопе сайдбар всегда виден, на мобильных управляется этим стейтом
@@ -107,23 +111,6 @@ export default function Sidebar() {
             </NavLink>
           ))}
 
-          <div className="h-px bg-line mx-1 my-3" />
-
-          {soon.map((label) => (
-            <div
-              key={label}
-              className="flex items-center justify-between px-3 py-2.5 rounded-[10px] mb-1 text-faint"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 bg-line rounded-[4px] shrink-0" />
-                <span className="text-sm">{label}</span>
-              </div>
-              <span className="text-[9px] tracking-[1.2px] font-bold px-1.5 py-0.5
-                               rounded bg-surface-2 text-faint">
-                SOON
-              </span>
-            </div>
-          ))}
         </nav>
 
         {/* подвал — сезон + переключатель темы */}

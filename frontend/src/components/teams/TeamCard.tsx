@@ -34,8 +34,7 @@ export default function TeamCard({ team, stats, onClick }: Props) {
         <TeamLogo team={team} abbr={team.abbr} size={48} />
         <div>
           <div className="font-display font-extrabold text-xl">
-            {team.city}{" "}
-            <span style={{ color: team.accent }}>{team.name}</span>
+            {team.city} {team.name}
           </div>
           <div className="text-[13px] text-muted">
             {team.record} · {winPct}%

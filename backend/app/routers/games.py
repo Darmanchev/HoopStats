@@ -18,6 +18,7 @@ async def get_upcoming(db: AsyncSession = Depends(get_db)):
             selectinload(Game.away_team),  # ← eagerly load away team
         )
         .where(Game.score1 == None)
+        .order_by(Game.date)
     )
     games = result.scalars().all()
 
