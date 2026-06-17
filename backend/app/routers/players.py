@@ -61,6 +61,4 @@ async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
         recent_games=player.recent_games,
         team_name=player.team.name if player.team else None,
         team_city=player.team.city if player.team else None,
-        team_color=player.team.color if player.team else None,
-        team_accent=player.team.accent if player.team else None,
     )

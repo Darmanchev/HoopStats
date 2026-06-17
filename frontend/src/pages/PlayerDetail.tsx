@@ -45,8 +45,6 @@ export default function PlayerDetailPage() {
     abbr: player.teamAbbr,
     name: player.teamName || "",
     city: player.teamCity || "",
-    color: player.teamColor || "#1C2235",
-    accent: player.teamAccent || "#4A7FD4",
     record: "0-0",
   };
 

@@ -1,92 +1,64 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import type { UpcomingGame } from "../types";
 import { useGames } from "../hooks/useGames";
 import { useTeams } from "../hooks/useTeams";
-import GameCard from "../components/matches/GameCard";
 import { LoadingState, ErrorState } from "../components/ui/PageState";
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-function dayHeading(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return `${DAYS[d.getDay()]} · ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-}
+import UpcomingGamesWidget from "../components/dashboard/UpcomingGamesWidget";
+import FeaturedGameWidget from "../components/dashboard/FeaturedGameWidget";
+import TopPlayerWidget from "../components/dashboard/TopPlayerWidget";
+import StandingsWidget from "../components/dashboard/StandingsWidget";
+import LiveGameStatsWidget from "../components/dashboard/LiveGameStatsWidget";
+import TeamEfficiencyChart from "../components/dashboard/TeamEfficiencyChart";
 
 export default function Dashboard() {
-  const navigate = useNavigate();
   const { upcoming, loading: gamesLoading, error: gamesError } = useGames();
   const { teams, loading: teamsLoading, error: teamsError } = useTeams();
 
-  const today = upcoming.filter((g) => g.isToday);
-  const future = upcoming.filter((g) => !g.isToday);
-
-  // предстоящие игры — группируем по дням (хронологически)
-  const futureByDay = useMemo(() => {
-    const groups: Record<string, UpcomingGame[]> = {};
-    [...future]
-      .sort((a, b) => (a.date < b.date ? -1 : 1))
-      .forEach((g) => {
-        (groups[g.date] ||= []).push(g);
-      });
-    return groups;
-  }, [future]);
-
   if (gamesLoading || teamsLoading) return <LoadingState />;
-  if (gamesError || teamsError)
-    return <ErrorState message={gamesError || teamsError || ""} />;
+  if (gamesError || teamsError) return <ErrorState message={gamesError || teamsError || ""} />;
+
+  // Берем ближайшие игры (не важно, сегодня они или нет)
+  const upcomingList = upcoming.slice(0, 3);
+  const featured = upcoming.length > 0 ? upcoming[0] : null;
 
   return (
-    <div className="px-6 sm:px-11 py-9 max-w-[860px] mx-auto">
-      <header className="mb-7">
-        <h1 className="font-display font-extrabold text-[26px] tracking-wide uppercase">
-          Tonight's Games
-        </h1>
-        <p className="text-[13px] text-muted mt-1">
-          {today.length} {today.length === 1 ? "game" : "games"} today · NBA Playoffs
-        </p>
-      </header>
+    <div className="max-w-[1300px] mx-auto pb-10">
+      <div className="mb-6">
+        <h1 className="font-display font-semibold text-[26px] text-ink">NBA Analytics Overview</h1>
+      </div>
 
-      {today.length > 0 ? (
-        <div className="flex flex-col gap-3.5 mb-11">
-          {today.map((g) => (
-            <GameCard
-              key={g.id}
-              game={g}
-              team1={teams[g.team1]}
-              team2={teams[g.team2]}
-              onClick={() => navigate(`/match/${g.id}`)}
-            />
-          ))}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_380px] gap-6">
+        
+        {/* Верхний ряд */}
+        <div className="h-auto xl:h-[300px]">
+          <UpcomingGamesWidget games={upcomingList} teams={teams} />
         </div>
-      ) : (
-        <div className="text-faint text-sm mb-11">No games scheduled today.</div>
-      )}
+        <div className="h-auto xl:h-[300px]">
+          <FeaturedGameWidget 
+            game={featured} 
+            team1={featured ? teams[featured.team1] : null} 
+            team2={featured ? teams[featured.team2] : null} 
+          />
+        </div>
+        <div className="h-auto xl:h-[300px]">
+          <TopPlayerWidget />
+        </div>
 
-      {/* предстоящие игры — отдельный заголовок на каждый день */}
-      {Object.entries(futureByDay).map(([day, games]) => (
-        <div key={day} className="mb-8">
-          <div className="font-display font-bold text-sm tracking-wide text-faint uppercase mb-3.5">
-            {dayHeading(day)}
+        {/* Нижний ряд: левая часть занимает 2 колонки */}
+        <div className="xl:col-span-2 flex flex-col gap-6">
+          <div className="h-[320px]">
+            <StandingsWidget teams={teams} />
           </div>
-          <div className="flex flex-col gap-3">
-            {games.map((g) => (
-              <GameCard
-                key={g.id}
-                game={g}
-                team1={teams[g.team1]}
-                team2={teams[g.team2]}
-                onClick={() => navigate(`/match/${g.id}`)}
-              />
-            ))}
+          <div className="h-[280px]">
+            <TeamEfficiencyChart />
           </div>
         </div>
-      ))}
+
+        {/* Нижний ряд: правая часть занимает 1 колонку (380px) */}
+        <div className="h-full">
+          <LiveGameStatsWidget />
+        </div>
+
+      </div>
     </div>
   );
 }

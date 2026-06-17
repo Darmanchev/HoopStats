@@ -54,5 +54,3 @@ class PlayerDetailSchema(CamelModel):
     recent_games: int
     team_name: str | None = None
     team_city: str | None = None
-    team_color: str | None = None
-    team_accent: str | None = None

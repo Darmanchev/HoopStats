@@ -22,8 +22,6 @@ export default function PlayerCard({ player, team, onClick }: Props) {
     abbr: player.teamAbbr,
     name: "",
     city: "",
-    color: "#1C2235",
-    accent: "#4A7FD4",
     record: "0-0",
   };
 

@@ -1,5 +1,6 @@
 import type { Game, UpcomingGame, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
+import { getTeamColors } from "../../utils/colors";
 
 interface Props {
   game: Game;
@@ -30,8 +31,8 @@ export default function ScheduleCard({ game, team1, team2, onSelect }: Props) {
   } else {
     v1 = `${game.win1.toFixed(1)}%`;
     v2 = `${(100 - game.win1).toFixed(1)}%`;
-    c1 = team1.accent;
-    c2 = team2.accent;
+    c1 = getTeamColors(game.team1).accent;
+    c2 = getTeamColors(game.team2).accent;
     status = game.time;
   }
 

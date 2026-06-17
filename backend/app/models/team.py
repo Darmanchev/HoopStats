@@ -9,8 +9,6 @@ class Team(Base):
     nba_id: Mapped[int] = mapped_column(Integer, nullable=True)  # ← новое
     name: Mapped[str] = mapped_column(String(50))
     city: Mapped[str] = mapped_column(String(50))
-    color: Mapped[str] = mapped_column(String(10))
-    accent: Mapped[str] = mapped_column(String(10))
     record: Mapped[str] = mapped_column(String(10))
 
 # relationships

@@ -1,27 +1,27 @@
-[tool.poetry]
+[project]
 name = "basketballstatistics"
 version = "0.1.0"
 description = "NBA statistics tracking and match prediction application"
-package-mode = false
-authors = ["evgeni <darmanchev.evgeni@gmail.com>"]
+authors = [
+    { name = "evgeni", email = "darmanchev.evgeni@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.136.1,<0.137.0",
+    "uvicorn>=0.46.0,<0.47.0",
+    "sqlalchemy>=2.0.0",
+    "asyncpg>=0.30,<0.31",
+    "alembic>=1.16,<2.0",
+    "httpx>=0.28,<0.29",
+    "pydantic-settings>=2.9,<3.0",
+    "greenlet>=3.0,<4.0",
+    "nba-api>=1.11.4,<2.0.0",
+    "scikit-learn>=1.6,<2.0",
+    "pandas>=2.0,<3.0",
+    "joblib>=1.4,<2.0",
+    "pydantic>=2.13.4,<3.0.0",
+    "apscheduler>=3.10.4,<4.0.0"
+]
 
-[tool.poetry.dependencies]
-python = "^3.13"
-fastapi = ">=0.136.1,<0.137.0"
-uvicorn = ">=0.46.0,<0.47.0"
-sqlalchemy = ">=2.0.0"
-asyncpg = ">=0.30,<0.31"
-alembic = ">=1.16,<2.0"
-httpx = ">=0.28,<0.29"
-pydantic-settings = ">=2.9,<3.0"
-greenlet = ">=3.0,<4.0"
-nba-api = "^1.11.4"
-scikit-learn = ">=1.6,<2.0"
-pandas = ">=2.0,<3.0"
-joblib = ">=1.4,<2.0"
-pydantic = "^2.13.4"
-apscheduler = "^3.10.4"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+package = false

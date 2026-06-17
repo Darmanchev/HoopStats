@@ -1,4 +1,5 @@
 import type { Team } from "../../types";
+import { getTeamColors } from "../../utils/colors";
 
 interface Props {
   team: Team;
@@ -31,14 +32,14 @@ export default function TeamLogo({ team, abbr, size = 48 }: Props) {
           width: ${size}px;
           height: ${size}px;
           border-radius: 50%;
-          background: ${team.color};
+          background: ${getTeamColors(abbr).color};
           display: flex;
           align-items: center;
           justify-content: center;
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 800;
           font-size: ${size * 0.32}px;
-          color: ${team.accent};
+          color: ${getTeamColors(abbr).accent};
         `;
         fallback.textContent = abbr;
         target.parentNode?.appendChild(fallback);

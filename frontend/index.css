@@ -1,73 +1,72 @@
 @import "tailwindcss";
 
-/* Тёмная тема включается классом .dark на <html>.
-   Утилиты Tailwind ссылаются на var(--color-*), поэтому для смены темы
-   достаточно переопределить переменные — классы в компонентах не меняются. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-display: "Barlow Condensed", sans-serif;
+  --font-display: "Poppins", sans-serif;
+  --font-sans: "Poppins", sans-serif;
 
-  /* --- Семантические цвета: значения СВЕТЛОЙ темы --- */
-  --color-bg: #F4F6FA;          /* фон страницы */
-  --color-surface: #FFFFFF;     /* карточки */
-  --color-surface-2: #F0F2F8;   /* вложенные блоки, статы */
-  --color-hover: #F4F6FF;       /* фон при наведении */
-  --color-ink: #1B2233;         /* основной текст */
-  --color-muted: #5C6580;       /* вторичный текст */
-  --color-faint: #8B94AC;       /* третичный текст */
-  --color-line: #E5E8F0;        /* мягкие границы */
-  --color-line-strong: #D2D7E2; /* акцентные границы */
+  /* --- СВЕТЛАЯ ТЕМА (Dribbble Clean) --- */
+  --color-bg: #F4F7FB;          /* очень мягкий голубовато-серый фон */
+  --color-surface: #FFFFFF;     /* белый для карточек */
+  --color-surface-2: #F9FAFC;   /* чуть серый для вложенных блоков */
+  --color-hover: #F1F5F9;       /* hover state */
+  --color-ink: #0F172A;         /* slate-900 глубокий чернильный */
+  --color-muted: #64748B;       /* slate-500 мягкий вторичный */
+  --color-faint: #94A3B8;       /* slate-400 третичный */
+  --color-line: #E2E8F0;        /* slate-200 тонкие чистые линии */
+  --color-line-strong: #CBD5E1; /* slate-300 границы */
 
-  --color-brand: oklch(0.58 0.19 25);
-  --color-info: oklch(0.55 0.15 250);
-  --color-active: oklch(0.95 0.025 255);
-  --color-active-border: oklch(0.86 0.05 255);
+  --color-brand: oklch(0.55 0.20 260); /* насыщенный синий бренд */
+  --color-info: oklch(0.60 0.15 250);
+  --color-active: oklch(0.96 0.02 260);
+  --color-active-border: oklch(0.88 0.05 260);
 
-  /* статусные пары (бейджи травм / типа сезона) */
-  --color-danger-bg: #FBE0E0;  --color-danger-fg: #B42318;
-  --color-warn-bg:   #FAEDC6;  --color-warn-fg:   #92400E;
-  --color-accent-bg: #DCE9FD;  --color-accent-fg: #1E40AF;
-  --color-violet-bg: #E3E5FB;  --color-violet-fg: #3730A3;
-  --color-win-bg:    #D6F0DC;  --color-win-fg:    #1B7A3E;
+  /* статусы */
+  --color-danger-bg: #FEE2E2;  --color-danger-fg: #B91C1C;
+  --color-warn-bg:   #FEF3C7;  --color-warn-fg:   #B45309;
+  --color-accent-bg: #DBEAFE;  --color-accent-fg: #1D4ED8;
+  --color-violet-bg: #EDE9FE;  --color-violet-fg: #5B21B6;
+  --color-win-bg:    #DCFCE7;  --color-win-fg:    #15803D;
 }
 
-/* мягкие тени-токены (через var → переключаются вместе с темой) */
 :root {
   color-scheme: light;
-  --shadow-card: 0 1px 2px rgba(20, 26, 46, 0.05), 0 4px 14px rgba(20, 26, 46, 0.07);
-  --shadow-card-hover: 0 10px 30px rgba(20, 26, 46, 0.14);
-  --shadow-pop: 0 6px 22px rgba(20, 26, 46, 0.12);
+  /* Мягкие "парящие" тени для Light/Clean */
+  --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 0 3px rgba(15, 23, 42, 0.02);
+  --shadow-card-hover: 0 10px 30px -4px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  --shadow-pop: 0 12px 36px -6px rgba(15, 23, 42, 0.15);
 }
 
-/* --- Переопределения для ТЁМНОЙ темы (html.dark — выше специфичность) --- */
+/* --- ТЁМНАЯ ТЕМА (Refined Dark) --- */
 html.dark {
   color-scheme: dark;
 
-  --color-bg: #0D1016;
-  --color-surface: #161B24;
-  --color-surface-2: #1E2530;
-  --color-hover: #1E2634;
-  --color-ink: #E8EBF2;
-  --color-muted: #99A2B7;
-  --color-faint: #69728A;
-  --color-line: #29303D;
-  --color-line-strong: #3A4252;
+  --color-bg: #0B1120;          /* очень глубокий синий/slate */
+  --color-surface: #131B2C;     /* чуть светлее фона */
+  --color-surface-2: #1E293B;   /* slate-800 */
+  --color-hover: #1E293B;
+  --color-ink: #F8FAFC;         /* slate-50 */
+  --color-muted: #94A3B8;       /* slate-400 */
+  --color-faint: #64748B;       /* slate-500 */
+  --color-line: #1E293B;        /* slate-800 */
+  --color-line-strong: #334155; /* slate-700 */
 
-  --color-brand: oklch(0.66 0.17 25);
-  --color-info: oklch(0.72 0.12 250);
-  --color-active: oklch(0.32 0.055 255);
-  --color-active-border: oklch(0.46 0.08 255);
+  --color-brand: oklch(0.65 0.18 260);
+  --color-info: oklch(0.70 0.14 250);
+  --color-active: oklch(0.25 0.04 260);
+  --color-active-border: oklch(0.35 0.08 260);
 
-  --color-danger-bg: #3A1C1D;  --color-danger-fg: #F4A8A2;
-  --color-warn-bg:   #382C12;  --color-warn-fg:   #F3D38A;
-  --color-accent-bg: #16294A;  --color-accent-fg: #9DC0F5;
-  --color-violet-bg: #232453;  --color-violet-fg: #B9BCF2;
-  --color-win-bg:    #16321F;  --color-win-fg:    #74D699;
+  --color-danger-bg: #451A1A;  --color-danger-fg: #FCA5A5;
+  --color-warn-bg:   #422006;  --color-warn-fg:   #FCD34D;
+  --color-accent-bg: #172554;  --color-accent-fg: #93C5FD;
+  --color-violet-bg: #2E1065;  --color-violet-fg: #C4B5FD;
+  --color-win-bg:    #052E16;  --color-win-fg:    #86EFAC;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.42);
-  --shadow-card-hover: 0 14px 38px rgba(0, 0, 0, 0.6);
-  --shadow-pop: 0 8px 26px rgba(0, 0, 0, 0.5);
+  /* В тёмной теме тени делаем более насыщенными, но с мягким размытием */
+  --shadow-card: 0 4px 24px -2px rgba(0, 0, 0, 0.4), 0 0 4px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 12px 36px -4px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 16px 48px -8px rgba(0, 0, 0, 0.7);
 }
 
 html, body, #root {
@@ -76,10 +75,11 @@ html, body, #root {
 
 body {
   background: var(--color-bg);
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* плавная смена темы — только фон и границы, чтобы не мешать hover-анимациям */
 body * {
-  transition: background-color 0.18s ease, border-color 0.18s ease,
-              color 0.18s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }

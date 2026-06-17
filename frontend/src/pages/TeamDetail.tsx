@@ -4,6 +4,7 @@ import FormBadge from "../components/teams/FormBadge";
 import SparkLine from "../components/teams/SparkLine";
 import { LoadingState } from "../components/ui/PageState";
 import { useTeamDetail } from "../hooks/useTeamDetail";
+import { getTeamColors } from "../utils/colors";
 
 export default function TeamDetail() {
   const { abbr } = useParams<{ abbr: string }>();
@@ -77,7 +78,7 @@ export default function TeamDetail() {
           </div>
           <SparkLine
             data={[...stats.lastScores].reverse()}
-            color={team.accent}
+            color={getTeamColors(team.abbr).accent}
             width={600}
             height={92}
             showValues

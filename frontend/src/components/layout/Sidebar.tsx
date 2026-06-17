@@ -1,129 +1,104 @@
-import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import ThemeToggle from "../ui/ThemeToggle";
 
 const nav = [
   {
     id: "dashboard",
     label: "Dashboard",
-    icon: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+        <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+        <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+        <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+      </svg>
+    ),
     to: "/",
-  },
-  {
-    id: "schedule",
-    label: "Schedule",
-    icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z",
-    to: "/schedule",
   },
   {
     id: "teams",
     label: "Teams",
-    icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+    ),
     to: "/teams",
   },
   {
     id: "players",
     label: "Players",
-    icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+    ),
     to: "/players",
+  },
+  {
+    id: "games",
+    label: "Games",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+    ),
+    to: "/schedule",
+  },
+  {
+    id: "stats",
+    label: "Stats",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+    ),
+    to: "/analytics",
   },
   {
     id: "injuries",
     label: "Injuries",
-    icon: "M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path>
+        <path d="M18 14h-8"></path>
+        <path d="M15 18h-5"></path>
+        <path d="M10 6h8v4h-8V6Z"></path>
+      </svg>
+    ),
     to: "/injuries",
-  },
-  {
-    id: "analytics",
-    label: "Analytics",
-    icon: "M18 20V10M12 20V4M6 20v-6",
-    to: "/analytics",
   },
 ];
 
 export default function Sidebar() {
-  // на десктопе сайдбар всегда виден, на мобильных управляется этим стейтом
-  const [open, setOpen] = useState(false);
-
   return (
-    <>
-      {/* кнопка-бургер — только на мобильных */}
-      <button
-        type="button"
-        aria-label="Open menu"
-        onClick={() => setOpen(true)}
-        className="md:hidden fixed top-3 right-3 z-50 p-2 rounded-lg bg-surface
-                   border border-line shadow-[var(--shadow-pop)] text-ink"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M3 6h18M3 12h18M3 18h18" />
-        </svg>
-      </button>
-
-      {/* затемнение фона при открытом меню (только мобильные) */}
-      {open && (
-        <div
-          onClick={() => setOpen(false)}
-          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
-        />
-      )}
-
-      <aside
-        className={`fixed md:static inset-y-0 left-0 z-40 w-[230px] shrink-0
-                    flex flex-col overflow-hidden
-                    bg-surface border-r border-line
-                    transition-transform duration-200
-                    ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
-      >
-        {/* шапка / логотип */}
-        <div className="px-6 py-7 border-b border-line">
-          <div className="font-display font-black text-[23px] tracking-[2.5px] uppercase text-ink">
-            Hoop<span className="text-brand">Stats</span>
-          </div>
-          <div className="text-[10px] tracking-[2px] text-faint mt-1">
-            NBA ANALYTICS
-          </div>
-        </div>
-
-        {/* навигация */}
-        <nav className="px-3 py-4 flex-1">
-          {nav.map((item) => (
-            <NavLink
-              key={item.id}
-              to={item.to}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 w-full px-3 py-2.5 rounded-[10px] mb-1
-                 text-sm font-medium transition-colors no-underline ${
-                   isActive
-                     ? "bg-active border border-active-border text-ink"
-                     : "border border-transparent text-muted hover:bg-hover hover:text-ink"
-                 }`
-              }
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="2"
-                   strokeLinecap="round" strokeLinejoin="round">
-                <path d={item.icon} />
-              </svg>
-              {item.label}
-            </NavLink>
-          ))}
-
-        </nav>
-
-        {/* подвал — сезон + переключатель темы */}
-        <div className="px-6 py-4 border-t border-line flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[10px] tracking-[1.4px] text-faint font-bold mb-0.5">
-              2025–26 SEASON
-            </div>
-            <div className="text-xs text-muted">Playoffs · Round 1</div>
-          </div>
-          <ThemeToggle />
-        </div>
-      </aside>
-    </>
+    <aside className="w-[100px] shrink-0 bg-surface shadow-[var(--shadow-card)] mx-4 my-6 rounded-[20px] flex flex-col items-center py-6 h-[calc(100vh-120px)] border border-line">
+      <nav className="flex-1 flex flex-col items-center gap-4 w-full px-3">
+        {nav.map((item) => (
+          <NavLink
+            key={item.id}
+            to={item.to}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center w-full h-[80px] rounded-2xl transition-all duration-200 ${
+                isActive
+                  ? "bg-brand/10 text-brand"
+                  : "text-muted hover:bg-hover hover:text-ink"
+              }`
+            }
+          >
+            {item.icon}
+            <span className="text-[12px] font-medium mt-1">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
   );
 }

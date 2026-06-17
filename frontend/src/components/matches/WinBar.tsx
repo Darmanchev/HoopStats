@@ -1,4 +1,5 @@
 import type { Team } from "../../types";
+import { getTeamColors } from "../../utils/colors";
 
 interface Props {
   pct1: number;
@@ -13,17 +14,17 @@ export default function WinBar({ pct1, team1, team2 }: Props) {
         {/* ширина и цвет приходят из данных — оставляем инлайн */}
         <div
           className="transition-[width] duration-[900ms] ease-out"
-          style={{ width: `${pct1}%`, background: team1.accent }}
+          style={{ width: `${pct1}%`, background: getTeamColors(team1.abbr).accent }}
         />
         <div
           className="transition-[width] duration-[900ms] ease-out"
-          style={{ width: `${100 - pct1}%`, background: team2.accent }}
+          style={{ width: `${100 - pct1}%`, background: getTeamColors(team2.abbr).accent }}
         />
       </div>
       <div className="flex justify-between items-center">
         <span
           className="font-display font-bold text-sm"
-          style={{ color: team1.accent }}
+          style={{ color: getTeamColors(team1.abbr).accent }}
         >
           {pct1.toFixed(1)}%
         </span>
@@ -32,7 +33,7 @@ export default function WinBar({ pct1, team1, team2 }: Props) {
         </span>
         <span
           className="font-display font-bold text-sm"
-          style={{ color: team2.accent }}
+          style={{ color: getTeamColors(team2.abbr).accent }}
         >
           {(100 - pct1).toFixed(1)}%
         </span>

@@ -1,5 +1,6 @@
 import type { Game, UpcomingGame, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
+import { getTeamColors } from "../../utils/colors";
 
 interface Props {
   game: Game;
@@ -93,14 +94,14 @@ export default function ScheduleRow({
           <div className="flex gap-1 items-center">
             <span
               className="font-display font-bold text-sm"
-              style={{ color: team1.accent }}
+              style={{ color: getTeamColors(game.team1).accent }}
             >
               {game.win1}%
             </span>
             <span className="text-[11px] text-faint">·</span>
             <span
               className="font-display font-bold text-sm"
-              style={{ color: team2.accent }}
+              style={{ color: getTeamColors(game.team2).accent }}
             >
               {100 - game.win1}%
             </span>

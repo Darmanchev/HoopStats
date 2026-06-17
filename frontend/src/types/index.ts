@@ -3,8 +3,6 @@ export interface Team {
   abbr: string;
   name: string;
   city: string;
-  color: string;
-  accent: string;
   record: string;
 }
 
@@ -90,8 +88,6 @@ export interface Player {
 export interface PlayerDetail extends Player {
   teamName: string | null;
   teamCity: string | null;
-  teamColor: string | null;
-  teamAccent: string | null;
 }
 
 // Объединённый тип для Schedule (где матч может быть любым)

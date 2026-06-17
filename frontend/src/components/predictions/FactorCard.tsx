@@ -1,4 +1,5 @@
 import type { Factor, Team } from "../../types";
+import { getTeamColors } from "../../utils/colors";
 
 interface Props {
   factor: Factor;
@@ -27,14 +28,14 @@ export default function FactorCard({ factor, team1, team2 }: Props) {
         <div>
           <div
             className="font-display font-extrabold text-[30px]"
-            style={{ color: edge === 1 ? team1.accent : "var(--color-ink)" }}
+            style={{ color: edge === 1 ? getTeamColors(team1.abbr).accent : "var(--color-ink)" }}
           >
             {factor.val1}
           </div>
           {edge === 1 && (
             <div
               className="text-[10px] font-bold tracking-wide"
-              style={{ color: team1.accent }}
+              style={{ color: getTeamColors(team1.abbr).accent }}
             >
               ▲ EDGE
             </div>
@@ -43,14 +44,14 @@ export default function FactorCard({ factor, team1, team2 }: Props) {
         <div className="text-right">
           <div
             className="font-display font-extrabold text-[30px]"
-            style={{ color: edge === 2 ? team2.accent : "var(--color-ink)" }}
+            style={{ color: edge === 2 ? getTeamColors(team2.abbr).accent : "var(--color-ink)" }}
           >
             {factor.val2}
           </div>
           {edge === 2 && (
             <div
               className="text-[10px] font-bold tracking-wide text-right"
-              style={{ color: team2.accent }}
+              style={{ color: getTeamColors(team2.abbr).accent }}
             >
               ▲ EDGE
             </div>

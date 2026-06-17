@@ -2,7 +2,7 @@ import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from app.database import SessionLocal
-from app.services.nba_service import (
+from app.services import (
     sync_teams,
     sync_games,
     sync_team_stats,

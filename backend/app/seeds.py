@@ -6,16 +6,16 @@ from datetime import date
 
 async def seed(db: AsyncSession):
     teams = [
-        Team(abbr="LAL", name="Lakers",   city="Los Angeles",  color="#3B1F6B", accent="#FDB927", record="52-28"),
-        Team(abbr="BOS", name="Celtics",  city="Boston",       color="#006532", accent="#9DC535", record="58-22"),
-        Team(abbr="GSW", name="Warriors", city="Golden State", color="#1D428A", accent="#FFC72C", record="49-31"),
-        Team(abbr="MIA", name="Heat",     city="Miami",        color="#8B0022", accent="#F9A01B", record="44-36"),
-        Team(abbr="DEN", name="Nuggets",  city="Denver",       color="#0E2240", accent="#FEC524", record="51-29"),
-        Team(abbr="MIL", name="Bucks",    city="Milwaukee",    color="#003313", accent="#A3D55C", record="47-33"),
-        Team(abbr="NYK", name="Knicks",   city="New York",     color="#005BA1", accent="#F58426", record="50-30"),
-        Team(abbr="OKC", name="Thunder",  city="Oklahoma City",color="#00599C", accent="#EF3B24", record="57-23"),
-        Team(abbr="PHX", name="Suns",     city="Phoenix",      color="#1D1160", accent="#E56020", record="43-37"),
-        Team(abbr="LAC", name="Clippers", city="Los Angeles",  color="#7B1028", accent="#1168C4", record="46-34"),
+        Team(abbr="LAL", name="Lakers",   city="Los Angeles",  record="52-28"),
+        Team(abbr="BOS", name="Celtics",  city="Boston",       record="58-22"),
+        Team(abbr="GSW", name="Warriors", city="Golden State", record="49-31"),
+        Team(abbr="MIA", name="Heat",     city="Miami",        record="44-36"),
+        Team(abbr="DEN", name="Nuggets",  city="Denver",       record="51-29"),
+        Team(abbr="MIL", name="Bucks",    city="Milwaukee",    record="47-33"),
+        Team(abbr="NYK", name="Knicks",   city="New York",     record="50-30"),
+        Team(abbr="OKC", name="Thunder",  city="Oklahoma City",record="57-23"),
+        Team(abbr="PHX", name="Suns",     city="Phoenix",      record="43-37"),
+        Team(abbr="LAC", name="Clippers", city="Los Angeles",  record="46-34"),
     ]
 
     games = [
