@@ -6,44 +6,44 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
-Комплексная аналитическая платформа для баскетбольной статистики (NBA) со встроенными модулями машинного обучения (Machine Learning) для прогнозирования результатов матчей.
+A comprehensive analytical platform for basketball (NBA) statistics with built-in Machine Learning modules to predict match outcomes.
 
-## 💡 О проекте
+## 💡 About the Project
 
-HoopStats объединяет в себе сбор данных, их анализ и удобное отображение для пользователя. Это полностек-решение, которое в реальном времени подтягивает статистику из внешних API (NBA, ESPN), обрабатывает ее и выдает аналитику: от турнирных таблиц и показателей игроков до вероятности победы команд в грядущих матчах, используя обученные ML-модели.
+HoopStats bridges the gap between data collection, analysis, and user-friendly visualization. It is a full-stack solution that pulls real-time statistics from external APIs (NBA, ESPN), processes them, and delivers in-depth analytics: ranging from standings and player metrics to predicting the win probabilities of upcoming games using trained ML models.
 
-## 🚀 Архитектура и этапы создания
+## 🚀 Architecture and Development Stages
 
 ### 1. Backend (Python + FastAPI)
-- **API & База Данных:** REST API на FastAPI, работа с базой через SQLAlchemy + миграции Alembic.
-- **Интеграция данных:** Написаны клиенты (`services/clients/espn.py`, `nba.py`) для автоматического парсинга расписаний, результатов и травм.
-- **Machine Learning:** Интегрированная ML-модель (`model.joblib` / `scikit-learn`), которая предсказывает исход будущих матчей на основе исторических метрик команд.
+- **API & Database:** RESTful API built with FastAPI, managing the database via SQLAlchemy and Alembic migrations.
+- **Data Integration:** Custom API clients (`services/clients/espn.py`, `nba.py`) designed for automated parsing of schedules, results, and injury reports.
+- **Machine Learning:** Integrated ML models (`model.joblib` / `scikit-learn`) capable of forecasting the outcome of future matches based on historical team performance metrics.
 
 ### 2. Frontend (React + TypeScript)
-- **Интерфейс:** SPA (Single Page Application) на React + Vite.
-- **Дашборды:** Реализованы интерактивные виджеты (LiveGameStats, Standings, TeamEfficiency, Predictions).
-- **Дизайн:** Использование современных UI-паттернов, Theme Toggle, графики и карточки игроков.
+- **Interface:** A smooth Single Page Application (SPA) powered by React and Vite.
+- **Dashboards:** Interactive and engaging widgets (LiveGameStats, Standings, TeamEfficiency, Predictions).
+- **Design:** Implements modern UI patterns, featuring a Theme Toggle, robust charting, and detailed player cards.
 
-### 3. Инфраструктура
-- **Docker Compose:** Легкий запуск базы данных, бэкенда и фронтенда одной командой.
+### 3. Infrastructure
+- **Docker Compose:** Streamlined launching of the database, backend, and frontend environments with a single command.
 
-## ⚙️ Установка и запуск
+## ⚙️ Installation and Setup
 
-1. Клонируйте репозиторий:
+1. Clone the repository:
    ```bash
    git clone https://github.com/Darmanchev/HoopStats.git
    cd HoopStats
    ```
-2. Подготовьте `.env` файлы (можно скопировать из `.env.example`).
-3. Запустите проект через Docker:
+2. Prepare your `.env` files (you can copy the provided `.env.example`).
+3. Run the project via Docker:
    ```bash
    docker-compose up -d
    ```
-4. Для первого запуска выполните миграции и сидирование (заполнение) БД историческими данными:
+4. For the initial setup, run migrations and seed the database with historical data:
    ```bash
    docker-compose exec backend alembic upgrade head
    docker-compose exec backend python backend/seed.py
    ```
 
 ---
-*Создано для тех, кто любит баскетбол и ценит глубокую аналитику данных.* 🏆
+*Built for those who love basketball and appreciate deep data analytics.* 🏆
