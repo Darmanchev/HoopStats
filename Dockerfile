@@ -2,12 +2,15 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir poetry==2.0.1
+RUN pip install --no-cache-dir uv==0.11.31
 
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --only main
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+
+RUN uv sync --frozen --no-dev --no-install-project
+
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY backend/app ./app/
 

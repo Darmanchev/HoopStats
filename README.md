@@ -34,13 +34,18 @@ Requirements: Docker with Compose.
 ```bash
 git clone https://github.com/Darmanchev/HoopStats.git
 cd HoopStats
-cp .env.example .env
 docker compose up -d --build
-docker compose exec backend alembic upgrade head
+```
+
+The database migrations run automatically when the backend starts. No `.env` file is required for local Docker development.
+
+To load NBA/ESPN data after the containers start:
+
+```bash
 docker compose exec backend python seed.py
 ```
 
-The initial sync calls external NBA/ESPN services and may take several minutes. After it finishes:
+The initial sync calls external NBA/ESPN services and may take several minutes. The application is available at:
 
 - frontend: [http://localhost:5173](http://localhost:5173)
 - API: [http://localhost:8000](http://localhost:8000)
