@@ -10,7 +10,10 @@ import LiveGameStatsWidget from "../components/dashboard/LiveGameStatsWidget";
 import TeamEfficiencyChart from "../components/dashboard/TeamEfficiencyChart";
 
 export default function Dashboard() {
-  const { upcoming, loading: gamesLoading, error: gamesError } = useGames();
+  const { upcoming, loading: gamesLoading, error: gamesError } = useGames(
+    undefined,
+    false
+  );
   const { teams, loading: teamsLoading, error: teamsError } = useTeams();
 
   if (gamesLoading || teamsLoading) return <LoadingState />;

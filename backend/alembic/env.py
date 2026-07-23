@@ -11,9 +11,10 @@ fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
+
 def run_migrations_offline():
     context.configure(
-        url=settings.database_url,
+        url=settings.sqlalchemy_url(),
         target_metadata=target_metadata,
         literal_binds=True,
     )
@@ -21,7 +22,7 @@ def run_migrations_offline():
         context.run_migrations()
 
 async def run_migrations_online():
-    engine = create_async_engine(settings.database_url)
+    engine = create_async_engine(settings.sqlalchemy_url())
     async with engine.connect() as connection:
         await connection.run_sync(
             lambda conn: context.configure(

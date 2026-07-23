@@ -40,9 +40,20 @@ export async function getTodayGames(): Promise<UpcomingGame[]> {
 }
 
 export async function getPastGames(season?: string): Promise<PastGame[]> {
-  const qs = new URLSearchParams({ limit: "5000" });
-  if (season) qs.set("season", season);
-  return fetcher(`/games/past?${qs.toString()}`);
+  const pageSize = 250;
+  const games: PastGame[] = [];
+
+  for (let skip = 0; ; skip += pageSize) {
+    const qs = new URLSearchParams({
+      skip: String(skip),
+      limit: String(pageSize),
+    });
+    if (season) qs.set("season", season);
+
+    const page = await fetcher<PastGame[]>(`/games/past?${qs.toString()}`);
+    games.push(...page);
+    if (page.length < pageSize) return games;
+  }
 }
 
 export async function getSeasons(): Promise<string[]> {

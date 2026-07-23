@@ -78,7 +78,7 @@ async def get_today(db: AsyncSession = Depends(get_db)):
 @router.get("/past", response_model=list[PastGameSchema])
 async def get_past(
         skip: int = Query(0, ge=0),
-        limit: int = Query(1500, ge=1, le=5000),
+        limit: int = Query(100, ge=1, le=250),
         season: str | None = Query(None, description="например 2024-25"),
         season_type: str | None = Query(None, pattern="^(regular|playoffs)$"),
         db: AsyncSession = Depends(get_db),

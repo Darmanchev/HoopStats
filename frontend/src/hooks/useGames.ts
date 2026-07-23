@@ -7,7 +7,7 @@ import { getUpcomingGames, getPastGames } from "../lib/api";
  * выбранного сезона, а предстоящие фильтрует под него же (предстоящие
  * существуют лишь у текущего сезона). Без аргумента — всё.
  */
-export function useGames(season?: string) {
+export function useGames(season?: string, includePast = true) {
   const [upcoming, setUpcoming] = useState<UpcomingGame[]>([]);
   const [past, setPast] = useState<PastGame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,10 @@ export function useGames(season?: string) {
     setLoading(true);
     setError(null);
 
-    Promise.all([getUpcomingGames(), getPastGames(season)])
+    Promise.all([
+      getUpcomingGames(),
+      includePast ? getPastGames(season) : Promise.resolve([]),
+    ])
       .then(([upcomingData, pastData]) => {
         if (cancelled) return;
         setUpcoming(
@@ -32,7 +35,7 @@ export function useGames(season?: string) {
     return () => {
       cancelled = true;
     };
-  }, [season]);
+  }, [season, includePast]);
 
   return { upcoming, past, loading, error };
 }

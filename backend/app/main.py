@@ -1,19 +1,27 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+from redis.asyncio import Redis
+
+from .config import settings
+from .rate_limit import RateLimitMiddleware
 from .routers import teams, games, injuries, players, analytics
-from .scheduler import start_scheduler, stop_scheduler
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    start_scheduler()
-    yield
-    # Shutdown
-    stop_scheduler()
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    await redis.ping()
+    app.state.redis = redis
+    try:
+        yield
+    finally:
+        await redis.aclose()
 
 app = FastAPI(title="HoopStats API", lifespan=lifespan)
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],

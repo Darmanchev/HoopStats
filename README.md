@@ -69,6 +69,41 @@ make status
 make down
 ```
 
+## Production deployment with Coolify
+
+Copy `.env.prod.example` to `.env.prod`. The production file is standalone, so
+Coolify can use it directly as its single Compose source:
+
+```bash
+docker compose \
+  --env-file .env.prod \
+  -f compose.prod.yaml \
+  up -d --build
+```
+
+Choose the Docker Compose build pack in Coolify and set **Docker Compose
+Location** to `/compose.prod.yaml`. Set a domain for the `frontend` service on
+container port `8080`.
+Enable **Force HTTPS** for that domain. Coolify terminates TLS and redirects
+HTTP to HTTPS; the container port is only exposed inside the Compose network.
+The production Nginx response adds HSTS.
+
+Production uses two PostgreSQL logins:
+
+- `POSTGRES_USER` / `DATABASE_URL`: database owner, used only by PostgreSQL and
+  the one-shot Alembic migration service;
+- `APP_DB_USER` / `APP_DB_PASSWORD`: restricted runtime login used by the API
+  and scheduler.
+
+Use different random passwords for these roles. On every deployment the
+one-shot `db_roles` service idempotently creates or updates the runtime role and
+grants only schema usage and table/sequence DML permissions.
+
+Redis provides shared API rate-limit counters and a 24-hour Elo cache. A
+successful game sync invalidates the cache, so the first following request
+rebuilds current ratings once. The scheduler runs in a separate container, so
+multiple Uvicorn workers do not duplicate periodic synchronization jobs.
+
 ## Architecture
 
 ```text
@@ -83,4 +118,4 @@ backend/alembic/                database migrations
 
 ## Current status and next steps
 
-The main dashboard, data synchronization and prediction flow are implemented. The scheduler currently refreshes teams, today's games, team stats, players and injuries; schedule refresh and prediction recalculation still need to be added to that periodic job. I also plan to add proper automated API tests, caching/rate-limit handling, model experiment tracking and deployment configuration.
+The main dashboard, data synchronization and prediction flow are implemented. The scheduler currently refreshes teams, today's games, team stats, players and injuries; schedule refresh and prediction recalculation still need to be added to that periodic job. I also plan to add proper automated API tests and model experiment tracking.

@@ -1,6 +1,9 @@
 import asyncio
+import signal
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+
 from app.database import SessionLocal
 from app.services import (
     sync_teams,
@@ -56,4 +59,23 @@ def start_scheduler():
 
 def stop_scheduler():
     """Останавливает scheduler"""
-    scheduler.shutdown()
+    if scheduler.running:
+        scheduler.shutdown()
+
+
+async def main() -> None:
+    """Run one scheduler process, independent from Uvicorn workers."""
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop_event.set)
+
+    start_scheduler()
+    try:
+        await stop_event.wait()
+    finally:
+        stop_scheduler()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

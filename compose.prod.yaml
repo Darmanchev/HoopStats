@@ -1,32 +1,172 @@
+name: hoopstats
+
 services:
   db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-hoopstats}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-hoopstats}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 15
     restart: unless-stopped
+    cpus: "1.5"
+    mem_limit: 1g
+    pids_limit: 256
+
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 192m
+    pids_limit: 128
 
   migrate:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:-${DATABASE_URL:?DATABASE_URL is required}}
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      REDIS_URL: ${REDIS_URL:-redis://localhost:6379}
+      REDIS_URL: redis://redis:6379/0
     command: alembic upgrade head
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
+    cpus: "0.50"
+    mem_limit: 512m
+    pids_limit: 128
+
+  db_roles:
+    image: postgres:17
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      PGDATABASE: ${POSTGRES_DB:-hoopstats}
+      APP_DB_USER: ${APP_DB_USER:-hoopstats_runtime}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-${SECRET_KEY:?SECRET_KEY is required}}
+    volumes:
+      - ./docker/postgres/configure-runtime-role.sql:/configure-runtime-role.sql:ro
+    command:
+      - sh
+      - -ec
+      - >
+        psql
+        --set=app_db_user="$$APP_DB_USER"
+        --set=app_db_password="$$APP_DB_PASSWORD"
+        --set=app_db_name="$$PGDATABASE"
+        --set=owner_user="$$PGUSER"
+        --file=/configure-runtime-role.sql
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+    cpus: "0.25"
+    mem_limit: 128m
+    pids_limit: 64
 
   backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: >
       uvicorn app.main:app
       --host 0.0.0.0
       --port 8000
-      --workers 1
+      --workers ${BACKEND_WORKERS:-2}
+      --proxy-headers
+      --forwarded-allow-ips=127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7
+    environment:
+      DATABASE_URL: ""
+      DB_USER: ${APP_DB_USER:-hoopstats_runtime}
+      DB_PASSWORD: ${APP_DB_PASSWORD:-${SECRET_KEY:?SECRET_KEY is required}}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-hoopstats}
+      NBA_API_KEY: ${NBA_API_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      REDIS_URL: redis://redis:6379/0
     depends_on:
-      migrate:
+      db_roles:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
+    cpus: "2.0"
+    mem_limit: 1g
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m app.scheduler
+    environment:
+      DATABASE_URL: ""
+      DB_USER: ${APP_DB_USER:-hoopstats_runtime}
+      DB_PASSWORD: ${APP_DB_PASSWORD:-${SECRET_KEY:?SECRET_KEY is required}}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-hoopstats}
+      NBA_API_KEY: ${NBA_API_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db_roles:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    cpus: "1.0"
+    mem_limit: 768m
+    pids_limit: 192
     read_only: true
     tmpfs:
       - /tmp
@@ -41,12 +181,15 @@ services:
       dockerfile: Dockerfile.prod
       args:
         VITE_API_URL: /api
-    ports:
-      - "80:8080"
+    expose:
+      - "8080"
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 256m
+    pids_limit: 128
     read_only: true
     tmpfs:
       - /tmp
@@ -56,3 +199,6 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+
+volumes:
+  postgres_data:

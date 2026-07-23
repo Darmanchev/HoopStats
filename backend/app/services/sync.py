@@ -10,6 +10,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from ..cache import invalidate_elo_cache
 from ..models.team import Team
 from .utils import CURRENT_SEASON, parse_log_date
 from .clients import nba as nba_client
@@ -48,6 +49,7 @@ async def sync_games(db: AsyncSession) -> None:
 
     await games_repo.reset_today_flag(db)
     count = await games_repo.upsert_live_games(db, games_data)
+    await invalidate_elo_cache()
     logger.info("Синхронизировано %d игр", count)
 
 
@@ -69,6 +71,7 @@ async def sync_historical_games(db: AsyncSession, season: str = CURRENT_SEASON) 
         return
 
     count = await games_repo.upsert_historical_games(db, headers, rows, season, "regular")
+    await invalidate_elo_cache()
     logger.info("Загружено %d игр регулярного сезона", count)
 
     # Плей-офф
@@ -86,6 +89,7 @@ async def sync_historical_games(db: AsyncSession, season: str = CURRENT_SEASON) 
         return
 
     count = await games_repo.upsert_historical_games(db, headers, rows, season, "playoffs")
+    await invalidate_elo_cache()
     logger.info("Загружено %d игр плей-офф", count)
 
 
