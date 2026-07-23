@@ -3,6 +3,9 @@ frontend/.env
 backend/.env
 ml/.env
 .env
+.env.dev
+.env.prod
+
 
 __pycache__/
 *.pyc
