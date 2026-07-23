@@ -46,6 +46,8 @@ services:
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,testserver}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-true}
     depends_on:
       db:
         condition: service_healthy

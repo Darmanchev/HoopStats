@@ -7,29 +7,32 @@
 import asyncio
 import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..cache import invalidate_elo_cache
 from ..models.team import Team
-from .utils import CURRENT_SEASON, parse_log_date
-from .clients import nba as nba_client
 from .clients import espn as espn_client
-from .repositories import teams as teams_repo
+from .clients import nba as nba_client
 from .repositories import games as games_repo
-from .repositories import team_stats as team_stats_repo
-from .repositories import players as players_repo
 from .repositories import injuries as injuries_repo
+from .repositories import players as players_repo
+from .repositories import team_stats as team_stats_repo
+from .repositories import teams as teams_repo
+from .utils import CURRENT_SEASON, parse_log_date
 
 logger = logging.getLogger(__name__)
 
 
 async def sync_teams(db: AsyncSession) -> None:
     """Загружает все команды из NBA API и обновляет БД."""
-    raw_teams = nba_client.fetch_teams()
+    raw_teams = await asyncio.to_thread(nba_client.fetch_teams)
     logger.info("NBA API вернул %d команд", len(raw_teams))
 
-    records = nba_client.fetch_standings(CURRENT_SEASON)
+    records = await asyncio.to_thread(
+        nba_client.fetch_standings,
+        CURRENT_SEASON,
+    )
 
     count_new = await teams_repo.upsert_teams(db, raw_teams, records)
     logger.info("Синхронизировано %d команд (%d новых)", len(raw_teams), count_new)
@@ -38,7 +41,7 @@ async def sync_teams(db: AsyncSession) -> None:
 async def sync_games(db: AsyncSession) -> None:
     """Загружает живые игры сегодня из NBA scoreboard."""
     try:
-        games_data = nba_client.fetch_live_scoreboard()
+        games_data = await asyncio.to_thread(nba_client.fetch_live_scoreboard)
     except Exception as e:
         logger.error("Ошибка при загрузке игр: %s: %s", type(e).__name__, e)
         return
@@ -60,7 +63,11 @@ async def sync_historical_games(db: AsyncSession, season: str = CURRENT_SEASON) 
     # Регулярный сезон
     try:
         await asyncio.sleep(1.0)
-        headers, rows = nba_client.fetch_league_games(season, "Regular Season")
+        headers, rows = await asyncio.to_thread(
+            nba_client.fetch_league_games,
+            season,
+            "Regular Season",
+        )
         logger.info("NBA API вернул %d записей (регулярный сезон)", len(rows))
     except Exception as e:
         logger.error("Ошибка при запросе регулярного сезона: %s: %s", type(e).__name__, e)
@@ -78,7 +85,11 @@ async def sync_historical_games(db: AsyncSession, season: str = CURRENT_SEASON) 
     logger.info("Загрузка игр плей-офф сезона %s...", season)
     try:
         await asyncio.sleep(1.0)
-        headers, rows = nba_client.fetch_league_games(season, "Playoffs")
+        headers, rows = await asyncio.to_thread(
+            nba_client.fetch_league_games,
+            season,
+            "Playoffs",
+        )
         logger.info("NBA API вернул %d записей (плей-офф)", len(rows))
     except Exception as e:
         logger.info("Плей-офф ещё не начался или данные недоступны: %s", e)
@@ -126,8 +137,11 @@ async def sync_team_stats(db: AsyncSession) -> None:
             for season_type in ("Regular Season", "Playoffs"):
                 await asyncio.sleep(1.0)  # rate limit
                 try:
-                    games += nba_client.fetch_team_game_log(
-                        team.nba_id, CURRENT_SEASON, season_type,
+                    games += await asyncio.to_thread(
+                        nba_client.fetch_team_game_log,
+                        team.nba_id,
+                        CURRENT_SEASON,
+                        season_type,
                     )
                 except Exception as e:
                     logger.debug(
@@ -170,7 +184,10 @@ async def sync_players(db: AsyncSession, season: str = CURRENT_SEASON) -> None:
 
     try:
         await asyncio.sleep(1.0)
-        headers, rows = nba_client.fetch_player_stats(season)
+        headers, rows = await asyncio.to_thread(
+            nba_client.fetch_player_stats,
+            season,
+        )
         logger.info("NBA API вернул %d записей игроков", len(rows))
     except Exception as e:
         logger.error("Ошибка при загрузке статистики игроков: %s: %s", type(e).__name__, e)

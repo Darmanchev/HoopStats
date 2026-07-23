@@ -83,10 +83,13 @@ docker compose \
 
 Choose the Docker Compose build pack in Coolify and set **Docker Compose
 Location** to `/compose.prod.yaml`. Set a domain for the `frontend` service on
-container port `8080`.
+container port `8080`. Set `APP_HOST` to that domain's hostname without a
+scheme, port, or path (for example, `stats.example.com`).
 Enable **Force HTTPS** for that domain. Coolify terminates TLS and redirects
 HTTP to HTTPS; the container port is only exposed inside the Compose network.
-The production Nginx response adds HSTS.
+The production Nginx response adds HSTS and rejects requests with another
+`Host` header. FastAPI validates the same host. Swagger, ReDoc, and the OpenAPI
+schema are disabled in production.
 
 Production uses two PostgreSQL logins:
 

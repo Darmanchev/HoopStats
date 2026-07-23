@@ -1,5 +1,11 @@
 name: hoopstats
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:17
@@ -22,6 +28,7 @@ services:
     cpus: "1.5"
     mem_limit: 1g
     pids_limit: 256
+    logging: *default-logging
 
   redis:
     image: redis:7.4-alpine
@@ -44,6 +51,7 @@ services:
     cpus: "0.50"
     mem_limit: 192m
     pids_limit: 128
+    logging: *default-logging
 
   migrate:
     build:
@@ -62,6 +70,7 @@ services:
     cpus: "0.50"
     mem_limit: 512m
     pids_limit: 128
+    logging: *default-logging
 
   db_roles:
     image: postgres:17
@@ -91,6 +100,7 @@ services:
     cpus: "0.25"
     mem_limit: 128m
     pids_limit: 64
+    logging: *default-logging
 
   backend:
     build:
@@ -113,6 +123,8 @@ services:
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
+      ALLOWED_HOSTS: ${APP_HOST:?APP_HOST hostname is required},localhost,127.0.0.1
+      API_DOCS_ENABLED: "false"
     depends_on:
       db_roles:
         condition: service_completed_successfully
@@ -135,6 +147,7 @@ services:
     cpus: "2.0"
     mem_limit: 1g
     pids_limit: 256
+    logging: *default-logging
     read_only: true
     tmpfs:
       - /tmp
@@ -167,6 +180,7 @@ services:
     cpus: "1.0"
     mem_limit: 768m
     pids_limit: 192
+    logging: *default-logging
     read_only: true
     tmpfs:
       - /tmp
@@ -181,6 +195,7 @@ services:
       dockerfile: Dockerfile.prod
       args:
         VITE_API_URL: /api
+        APP_HOST: ${APP_HOST:?APP_HOST hostname is required}
     expose:
       - "8080"
     depends_on:
@@ -190,6 +205,7 @@ services:
     cpus: "0.50"
     mem_limit: 256m
     pids_limit: 128
+    logging: *default-logging
     read_only: true
     tmpfs:
       - /tmp

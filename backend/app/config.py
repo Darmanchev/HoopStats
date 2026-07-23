@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     nba_api_key: str = ""
     secret_key: str
     redis_url: str = "redis://redis:6379/0"
+    allowed_hosts: str = "localhost,127.0.0.1,testserver"
+    api_docs_enabled: bool = False
     elo_cache_ttl_seconds: int = 86_400
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
@@ -26,6 +28,11 @@ class Settings(BaseSettings):
         env_file=str(BASE_DIR / ".env"),
         extra="ignore",
     )
+
+    def allowed_host_list(self) -> list[str]:
+        """Return normalized hosts for Starlette's TrustedHostMiddleware."""
+        hosts = [host.strip() for host in self.allowed_hosts.split(",")]
+        return [host for host in hosts if host]
 
     def sqlalchemy_url(self) -> str | URL:
         """Build a URL without requiring URL-escaped passwords in Compose."""
