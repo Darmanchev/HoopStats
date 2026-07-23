@@ -73,7 +73,9 @@ services:
     logging: *default-logging
 
   db_roles:
-    image: postgres:17
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
     environment:
       PGHOST: db
       PGUSER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -81,8 +83,6 @@ services:
       PGDATABASE: ${POSTGRES_DB:-hoopstats}
       APP_DB_USER: ${APP_DB_USER:-hoopstats_runtime}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-${SECRET_KEY:?SECRET_KEY is required}}
-    volumes:
-      - ./docker/postgres/configure-runtime-role.sql:/configure-runtime-role.sql:ro
     command:
       - sh
       - -ec
