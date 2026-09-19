@@ -1,11 +1,11 @@
-# ENV файлы — никогда не заливать на GitHub
+# Local environment file containing secrets.
+.env
 frontend/.env
 backend/.env
 ml/.env
-.env
-.env.dev
-.env.prod
-!.env.prod.example
+
+# The safe local template is committed.
+!.env.example
 
 
 __pycache__/
@@ -21,3 +21,6 @@ frontend/node_modules/
 .vscode/
 .idea/
 .DS_Store
+
+.ruff_cache
+opencode.json

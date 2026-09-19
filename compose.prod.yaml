@@ -73,9 +73,7 @@ services:
     logging: *default-logging
 
   db_roles:
-    build:
-      context: ./docker/postgres
-      dockerfile: Dockerfile
+    image: postgres:17
     environment:
       PGHOST: db
       PGUSER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -93,6 +91,8 @@ services:
         --set=app_db_name="$$PGDATABASE"
         --set=owner_user="$$PGUSER"
         --file=/configure-runtime-role.sql
+    volumes:
+      - ./docker/postgres/configure-runtime-role.sql:/configure-runtime-role.sql:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -123,6 +123,9 @@ services:
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis,backend,frontend}
       ALLOWED_HOSTS: ${APP_HOST:?APP_HOST hostname is required},localhost,127.0.0.1
       API_DOCS_ENABLED: "false"
     depends_on:
@@ -171,6 +174,9 @@ services:
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis,backend,frontend}
     depends_on:
       db_roles:
         condition: service_completed_successfully
@@ -192,7 +198,8 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
+      target: production
       args:
         VITE_API_URL: /api
         APP_HOST: ${APP_HOST:?APP_HOST hostname is required}

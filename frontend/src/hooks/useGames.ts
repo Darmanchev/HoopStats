@@ -10,13 +10,12 @@ import { getUpcomingGames, getPastGames } from "../lib/api";
 export function useGames(season?: string, includePast = true) {
   const [upcoming, setUpcoming] = useState<UpcomingGame[]>([]);
   const [past, setPast] = useState<PastGame[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [completedRequest, setCompletedRequest] = useState<string | null>(null);
+  const requestKey = `${season ?? "all"}:${includePast}`;
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     Promise.all([
       getUpcomingGames(),
@@ -28,14 +27,20 @@ export function useGames(season?: string, includePast = true) {
           season ? upcomingData.filter((g) => g.season === season) : upcomingData
         );
         setPast(pastData);
+        setError(null);
       })
       .catch((e) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => !cancelled && setCompletedRequest(requestKey));
 
     return () => {
       cancelled = true;
     };
-  }, [season, includePast]);
+  }, [season, includePast, requestKey]);
 
-  return { upcoming, past, loading, error };
+  return {
+    upcoming,
+    past,
+    loading: completedRequest !== requestKey,
+    error,
+  };
 }

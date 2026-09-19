@@ -5,24 +5,30 @@ import { getPlayer } from "../lib/api";
 /** Загружает детальную карточку игрока по id. */
 export function usePlayerDetail(id: string | undefined) {
   const [player, setPlayer] = useState<PlayerDetail | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [completedRequest, setCompletedRequest] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     getPlayer(parseInt(id))
-      .then((p) => !cancelled && setPlayer(p))
+      .then((p) => {
+        if (cancelled) return;
+        setPlayer(p);
+        setError(null);
+      })
       .catch((e) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => !cancelled && setCompletedRequest(id));
 
     return () => {
       cancelled = true;
     };
   }, [id]);
 
-  return { player, loading, error };
+  return {
+    player,
+    loading: Boolean(id) && completedRequest !== id,
+    error,
+  };
 }

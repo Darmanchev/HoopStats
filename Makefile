@@ -1,58 +1,32 @@
-.PHONY: up down build rebuild logs seed sync shell db-logs backend-logs frontend-logs restart migrate
+COMPOSE = docker compose \
+	-p hoopstats-dev \
+	--env-file .env
 
-# Docker Compose
+.PHONY: up down clean logs migrate seed seed-seasons train status
+
 up:
-	docker compose up -d --build
+	$(COMPOSE) up -d --build
 
 down:
-	docker compose down
+	$(COMPOSE) down
 
-build:
-	docker compose up -d --build
+clean:
+	$(COMPOSE) down -v
 
-rebuild:
-	docker compose down
-	docker compose build --no-cache
-	docker compose up -d
-
-restart:
-	docker compose restart
-
-# Logs
 logs:
-	docker compose logs -f
+	$(COMPOSE) logs -f
 
-backend-logs:
-	docker compose logs -f backend
-
-frontend-logs:
-	docker compose logs -f frontend
-
-db-logs:
-	docker compose logs -f db
-
-# Database
 migrate:
-	docker compose exec backend alembic upgrade head
+	$(COMPOSE) exec backend alembic upgrade head
 
 seed:
-	docker compose exec backend python seed.py
+	$(COMPOSE) exec backend python seed.py
 
-sync:
-	docker compose exec backend python seed.py
+seed-seasons:
+	$(COMPOSE) exec backend python seed.py --seasons $(SEASONS)
 
-# Shell access
-shell:
-	docker compose exec backend sh
+train:
+	$(COMPOSE) exec backend python train_model.py
 
-db-shell:
-	docker compose exec db psql -U admin -d hoopstats
-
-# Status
 status:
-	docker compose ps
-
-# Clean
-clean:
-	docker compose down -v
-	rm -rf data/postgres/*
+	$(COMPOSE) ps

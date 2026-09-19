@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload  # ← НОВОЕ
 from ..database import get_db
-from ..schemas.game import PastGameSchema, UpcomingGameSchema, GameBase
+from ..schemas.game import PastGameSchema, UpcomingGameSchema
 from ..models.game import Game
 
 router = APIRouter(prefix="/games", tags=["games"])
@@ -103,7 +103,7 @@ async def get_seasons(db: AsyncSession = Depends(get_db)):
     return [s for s in result.scalars().all() if s]
 
 
-@router.get("/{id}", response_model=GameBase)
+@router.get("/{id}", response_model=UpcomingGameSchema)
 async def get_game(id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Game)

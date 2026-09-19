@@ -34,15 +34,17 @@ Requirements: Docker with Compose.
 ```bash
 git clone https://github.com/Darmanchev/HoopStats.git
 cd HoopStats
-docker compose up -d --build
+cp .env.example .env
+make up
 ```
 
-The database migrations run automatically when the backend starts. No `.env` file is required for local Docker development.
+The local `.env` file is intentionally ignored by Git. The database migrations
+run automatically when the backend starts.
 
 To load NBA/ESPN data after the containers start:
 
 ```bash
-docker compose exec backend python seed.py
+make seed
 ```
 
 The initial sync calls external NBA/ESPN services and may take several minutes. The application is available at:
@@ -54,9 +56,9 @@ The initial sync calls external NBA/ESPN services and may take several minutes. 
 To train a model on several seasons:
 
 ```bash
-docker compose exec backend python seed.py --seasons 2023-24 2024-25 2025-26
-docker compose exec backend python train_model.py
-docker compose exec backend python seed.py
+make seed-seasons SEASONS="2023-24 2024-25 2025-26"
+make train
+make seed
 ```
 
 Useful shortcuts:
@@ -65,21 +67,12 @@ Useful shortcuts:
 make logs
 make migrate
 make seed
+make train
 make status
 make down
 ```
 
 ## Production deployment with Coolify
-
-Copy `.env.prod.example` to `.env.prod`. The production file is standalone, so
-Coolify can use it directly as its single Compose source:
-
-```bash
-docker compose \
-  --env-file .env.prod \
-  -f compose.prod.yaml \
-  up -d --build
-```
 
 Choose the Docker Compose build pack in Coolify and set **Docker Compose
 Location** to `/compose.prod.yaml`. Set a domain for the `frontend` service on
@@ -90,6 +83,25 @@ HTTP to HTTPS; the container port is only exposed inside the Compose network.
 The production Nginx response adds HSTS and rejects requests with another
 `Host` header. FastAPI validates the same host. Swagger, ReDoc, and the OpenAPI
 schema are disabled in production.
+
+Configure production values in Coolify instead of keeping a production
+environment file in the repository. Required variables:
+
+- `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`;
+- `DATABASE_URL`, using the PostgreSQL owner account for migrations;
+- `APP_DB_USER` and `APP_DB_PASSWORD`, using a separate runtime account;
+- `SECRET_KEY` and `APP_HOST`.
+
+`NBA_API_KEY`, `BACKEND_WORKERS`, `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
+are optional. For a manual deployment outside Coolify, provide an environment
+file stored outside the repository:
+
+```bash
+docker compose \
+  --env-file /secure/path/hoopstats.env \
+  -f compose.prod.yaml \
+  up -d --build
+```
 
 Production uses two PostgreSQL logins:
 
