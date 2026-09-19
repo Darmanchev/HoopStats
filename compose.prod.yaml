@@ -56,7 +56,7 @@ services:
   migrate:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: ${MIGRATION_DATABASE_URL:-${DATABASE_URL:?DATABASE_URL is required}}
       NBA_API_KEY: ${NBA_API_KEY:-}
@@ -105,7 +105,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: backend/Dockerfile
     command: >
       uvicorn app.main:app
       --host 0.0.0.0
@@ -162,7 +162,7 @@ services:
   scheduler:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: backend/Dockerfile
     command: python -m app.scheduler
     environment:
       DATABASE_URL: ""

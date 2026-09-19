@@ -260,7 +260,7 @@ npm run lint
 npm run build -- --outDir /tmp/hoopstats-frontend-build --emptyOutDir
 ```
 
-Expected result: both commands exit successfully. Building into `/tmp` avoids modifying the repository's tracked `frontend/dist` files.
+Expected result: both commands exit successfully. Building into `/tmp` avoids creating build artifacts in the repository.
 
 - [ ] **Step 9: Review the exact change set**
 

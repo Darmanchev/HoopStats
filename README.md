@@ -122,15 +122,21 @@ multiple Uvicorn workers do not duplicate periodic synchronization jobs.
 ## Architecture
 
 ```text
-frontend/                       React dashboard
-backend/app/routers/            API endpoints
-backend/app/services/clients/   NBA and ESPN clients
+frontend/                          React dashboard and production image
+backend/app/routers/               API endpoints
+backend/app/services/clients/      NBA and ESPN integrations
 backend/app/services/repositories/ database operations
-backend/app/services/sync.py    data synchronization
-backend/app/ml/                 features, training and prediction
-backend/alembic/                database migrations
+backend/app/services/sync.py       data synchronization
+backend/app/ml/                    features, training and prediction
+backend/scripts/                   operational commands
+backend/alembic/                   database migrations
+docker/postgres/                   database role configuration
 ```
 
 ## Current status and next steps
 
-The main dashboard, data synchronization and prediction flow are implemented. The scheduler currently refreshes teams, today's games, team stats, players and injuries; schedule refresh and prediction recalculation still need to be added to that periodic job. I also plan to add proper automated API tests and model experiment tracking.
+The main dashboard, data synchronization and prediction flow are implemented.
+The scheduler refreshes teams, games, schedules, team statistics, players,
+injuries, and predictions. Automated backend tests cover the main API contract
+and scheduler behavior. The next priorities are broader integration coverage,
+frontend tests, and model experiment tracking.

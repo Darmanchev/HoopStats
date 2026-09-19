@@ -20,13 +20,13 @@ migrate:
 	$(COMPOSE) exec backend alembic upgrade head
 
 seed:
-	$(COMPOSE) exec backend python seed.py
+	$(COMPOSE) exec backend python -m scripts.seed
 
 seed-seasons:
-	$(COMPOSE) exec backend python seed.py --seasons $(SEASONS)
+	$(COMPOSE) exec backend python -m scripts.seed --seasons $(SEASONS)
 
 train:
-	$(COMPOSE) exec backend python train_model.py
+	$(COMPOSE) exec backend python -m scripts.train_model
 
 status:
 	$(COMPOSE) ps

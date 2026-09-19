@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 async def sync_predictions(db: AsyncSession) -> None:
     """Считает ML-прогнозы (win1 + текст) для всех предстоящих игр.
 
-    Требует обученную модель (backend/train_model.py). Если её нет —
+    Требует обученную модель (backend/scripts/train_model.py). Если её нет —
     функция мягко завершится без изменений.
     """
     rows = (await db.execute(select(Game))).scalars().all()

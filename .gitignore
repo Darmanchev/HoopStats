@@ -1,26 +1,35 @@
-# Local environment file containing secrets.
-.env
-frontend/.env
-backend/.env
-ml/.env
-
-# The safe local template is committed.
+# Environment files may contain secrets. Commit only the safe template.
+.env*
 !.env.example
 
-
+# Python
 __pycache__/
-*.pyc
-.claude/
+*.py[cod]
 .venv/
-data/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
 
+# Runtime data
+data/
+*.log
+
+# Frontend
 frontend/.vite/
 frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+.eslintcache
+npm-debug.log*
 
 # IDE
 .vscode/
 .idea/
 .DS_Store
 
-.ruff_cache
+# Local development tools
+.claude/
 opencode.json
