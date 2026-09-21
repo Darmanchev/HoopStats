@@ -108,6 +108,7 @@ async def test_match_detail_returns_prediction_and_team_details() -> None:
         "prediction": "Boston has the stronger recent form.",
         "status": "scheduled",
         "statusText": "",
+        "startTime": None,
         "period": None,
         "clock": None,
         "score1": None,
@@ -117,12 +118,20 @@ async def test_match_detail_returns_prediction_and_team_details() -> None:
             "name": "Celtics",
             "city": "Boston",
             "record": "4-1",
+            "conference": None,
+            "conferenceRank": None,
+            "lastTen": None,
+            "streak": None,
         },
         "awayTeam": {
             "abbr": "LAL",
             "name": "Lakers",
             "city": "Los Angeles",
             "record": "3-2",
+            "conference": None,
+            "conferenceRank": None,
+            "lastTen": None,
+            "streak": None,
         },
     }
 

@@ -1,4 +1,6 @@
-from sqlalchemy import String, Integer, Float, Boolean, ForeignKey
+from datetime import datetime
+
+from sqlalchemy import String, Integer, Float, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
@@ -30,6 +32,11 @@ class Game(Base):
     )
     period: Mapped[int | None] = mapped_column(Integer, nullable=True)
     clock: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    start_time: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
 
 # relationship
     home_team = relationship("Team", back_populates="home_games", foreign_keys=[team1])

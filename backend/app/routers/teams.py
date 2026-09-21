@@ -1,12 +1,9 @@
-import json
-
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from ..cache import TEAMS_CACHE_KEY
+from ..cache import TEAMS_CACHE_KEY, get_cached_json, set_cached_json
 from ..config import settings
 from ..database import get_db
 from ..models.player import Player
@@ -25,12 +22,11 @@ async def get_teams(
     limit: int = Query(100, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    redis: Redis = request.app.state.redis
     cacheable = skip == 0 and limit == 100
     if cacheable:
-        cached = await redis.get(TEAMS_CACHE_KEY)
-        if cached:
-            return json.loads(cached)
+        cached = await get_cached_json(request.app.state.redis, TEAMS_CACHE_KEY)
+        if cached is not None:
+            return cached
 
     result = await db.execute(
         select(Team)
@@ -47,10 +43,11 @@ async def get_teams(
         for team in result.scalars().all()
     ]
     if cacheable:
-        await redis.set(
+        await set_cached_json(
+            request.app.state.redis,
             TEAMS_CACHE_KEY,
-            json.dumps(response),
-            ex=settings.teams_cache_ttl_seconds,
+            response,
+            ttl=settings.teams_cache_ttl_seconds,
         )
     return response
 
@@ -73,6 +70,10 @@ async def get_team(abbr: str, db: AsyncSession = Depends(get_db)):
         name=team.name,
         city=team.city,
         record=team.record,
+        conference=team.conference,
+        conference_rank=team.conference_rank,
+        last_ten=team.last_ten,
+        streak=team.streak,
         stats=team.stats,
         players_count=players_count.scalar_one(),
     )

@@ -65,12 +65,28 @@ function supportsBoxScore(
   );
 }
 
+function selectBoxScoreGame(today: LiveGame[]): LiveGame | null {
+  const live = today.find((game) => game.status === "live");
+  if (live) return live;
+
+  return [...today]
+    .filter((game) => game.status === "final")
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.startTime ?? `${left.date}T${left.time || "00:00"}`);
+      const rightTime = Date.parse(right.startTime ?? `${right.date}T${right.time || "00:00"}`);
+      const safeLeft = Number.isNaN(leftTime) ? 0 : leftTime;
+      const safeRight = Number.isNaN(rightTime) ? 0 : rightTime;
+      return safeRight - safeLeft;
+    })[0] ?? null;
+}
+
 export function useDashboard() {
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [upcoming, setUpcoming] = useState<UpcomingGame[]>([]);
   const [today, setToday] = useState<LiveGame[]>([]);
   const [leaders, setLeaders] = useState<Record<string, Player[]>>({});
   const [featuredGame, setFeaturedGame] = useState<LiveGame | UpcomingGame | null>(null);
+  const [boxScoreGame, setBoxScoreGame] = useState<LiveGame | null>(null);
   const [boxScore, setBoxScore] = useState<PlayerGameStat[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,6 +95,10 @@ export function useDashboard() {
 
   const mountedRef = useRef(false);
   const loadedRef = useRef(false);
+  const boxScoreRef = useRef<{ gameId: string | null; players: PlayerGameStat[] }>({
+    gameId: null,
+    players: [],
+  });
   const dataRef = useRef<DashboardData>({
     teams: {},
     upcoming: [],
@@ -135,16 +155,24 @@ export function useDashboard() {
     dataRef.current = nextData;
     const nextFeaturedGame = selectFeaturedGame(nextData.today, nextData.upcoming);
     setFeaturedGame(nextFeaturedGame);
+    const nextBoxScoreGame = selectBoxScoreGame(nextData.today);
+    setBoxScoreGame(nextBoxScoreGame);
 
-    if (supportsBoxScore(nextFeaturedGame)) {
+    if (supportsBoxScore(nextBoxScoreGame)) {
+      if (boxScoreRef.current.gameId !== nextBoxScoreGame.id) {
+        boxScoreRef.current = { gameId: nextBoxScoreGame.id, players: [] };
+        setBoxScore([]);
+      }
       try {
-        const stats = await getBoxScore(nextFeaturedGame.id);
+        const stats = await getBoxScore(nextBoxScoreGame.id);
         if (!mountedRef.current) return;
+        boxScoreRef.current = { gameId: nextBoxScoreGame.id, players: stats };
         setBoxScore(stats);
       } catch (reason) {
         nextErrors.boxScore = errorMessage(reason);
       }
     } else {
+      boxScoreRef.current = { gameId: null, players: [] };
       setBoxScore([]);
     }
 
@@ -184,6 +212,7 @@ export function useDashboard() {
     today,
     leaders,
     featuredGame,
+    boxScoreGame,
     boxScore,
     initialLoading,
     refreshing,

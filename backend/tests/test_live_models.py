@@ -6,7 +6,7 @@ from app.models.team import Team
 
 
 def test_game_exposes_live_state_columns() -> None:
-    assert {"status", "status_text", "period", "clock"} <= set(
+    assert {"status", "status_text", "period", "clock", "start_time"} <= set(
         Game.__table__.columns.keys()
     )
 

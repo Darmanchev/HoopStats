@@ -83,6 +83,7 @@ const dashboardData = {
   today: [live],
   leaders: { pts: [player] },
   featuredGame: live,
+  boxScoreGame: live,
   boxScore: [],
   initialLoading: false,
   refreshing: false,

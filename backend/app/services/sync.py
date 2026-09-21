@@ -60,6 +60,9 @@ async def sync_games(db: AsyncSession) -> None:
         return
 
     affected_ids = await games_repo.upsert_live_games(db, games_data)
+    # Persist scoreboard changes before opening per-game savepoints. SQLAlchemy
+    # otherwise flushes all pending changes when a nested transaction begins.
+    await db.flush()
     for game in games_data:
         if game["status"] not in {"live", "final"}:
             continue
@@ -68,11 +71,12 @@ async def sync_games(db: AsyncSession) -> None:
                 nba_client.fetch_live_boxscore,
                 game["game_id"],
             )
-            await player_stats_repo.upsert_player_game_stats(
-                db,
-                game["game_id"],
-                players,
-            )
+            async with db.begin_nested():
+                await player_stats_repo.upsert_player_game_stats(
+                    db,
+                    game["game_id"],
+                    players,
+                )
         except Exception:
             logger.exception(
                 "Box score sync failed for game %s",

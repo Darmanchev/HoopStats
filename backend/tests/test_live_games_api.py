@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 
 import pytest
 from fastapi import FastAPI
@@ -65,6 +66,7 @@ def make_live_game() -> Game:
         season="2026-27",
         status="live",
         status_text="Q3 04:12",
+        start_time=datetime(2026, 9, 21, 22, 0, tzinfo=timezone.utc),
         period=3,
         clock="PT04M12.00S",
         score1=78,
@@ -118,6 +120,7 @@ async def test_today_returns_live_state() -> None:
         "clock": game["clock"],
         "score1": game["score1"],
         "score2": game["score2"],
+        "startTime": game["startTime"],
     } == {
         "status": "live",
         "statusText": "Q3 04:12",
@@ -125,6 +128,7 @@ async def test_today_returns_live_state() -> None:
         "clock": "PT04M12.00S",
         "score1": 78,
         "score2": 74,
+        "startTime": "2026-09-21T22:00:00Z",
     }
 
 

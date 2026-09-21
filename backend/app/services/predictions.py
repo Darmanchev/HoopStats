@@ -27,9 +27,10 @@ async def sync_predictions(db: AsyncSession) -> None:
             "id": g.id, "team1": g.team1, "team2": g.team2, "date": g.date,
             "score1": g.score1, "score2": g.score2, "season": g.season,
         }
-        for g in rows if g.score1 is not None and g.score2 is not None
+        for g in rows
+        if g.status == "final" and g.score1 is not None and g.score2 is not None
     ]
-    upcoming = [g for g in rows if g.score1 is None]
+    upcoming = [g for g in rows if g.status == "scheduled"]
 
     if not upcoming:
         logger.info("Нет предстоящих игр для прогноза")

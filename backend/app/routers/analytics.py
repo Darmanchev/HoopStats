@@ -64,6 +64,7 @@ async def get_elo(request: Request, db: AsyncSession = Depends(get_db)):
                     Game.score2,
                     Game.season,
                 ).where(
+                    Game.status == "final",
                     Game.score1.is_not(None),
                     Game.score2.is_not(None),
                     Game.team1.is_not(None),

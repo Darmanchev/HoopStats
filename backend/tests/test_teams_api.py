@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from redis.exceptions import RedisError
 
 from app.database import get_db
 from app.models.team import Team
@@ -49,6 +50,14 @@ class FakeRedis:
         self.set_calls.append((key, value, ex))
 
 
+class FailingRedis(FakeRedis):
+    async def get(self, key: str) -> str | None:
+        raise RedisError(f"cannot read {key}")
+
+    async def set(self, key: str, value: str, ex: int | None = None) -> None:
+        raise RedisError(f"cannot write {key}")
+
+
 def make_app(team: Team, players_count: int) -> FastAPI:
     app = FastAPI()
     app.include_router(teams.router)
@@ -68,6 +77,10 @@ async def test_team_detail_uses_database_player_count() -> None:
         name="Celtics",
         city="Boston",
         record="4-1",
+        conference="East",
+        conference_rank=1,
+        last_ten="4-1",
+        streak="W2",
     )
     app = make_app(team, players_count=17)
     transport = ASGITransport(app=app)
@@ -90,6 +103,10 @@ async def test_team_list_includes_stats_and_caches_combined_response() -> None:
         name="Celtics",
         city="Boston",
         record="4-1",
+        conference="East",
+        conference_rank=1,
+        last_ten="4-1",
+        streak="W2",
     )
     team.stats = TeamStats(
         team_abbr="BOS",
@@ -117,6 +134,10 @@ async def test_team_list_includes_stats_and_caches_combined_response() -> None:
             "name": "Celtics",
             "city": "Boston",
             "record": "4-1",
+            "conference": "East",
+            "conferenceRank": 1,
+            "lastTen": "4-1",
+            "streak": "W2",
             "stats": {
                 "teamAbbr": "BOS",
                 "form": ["W", "W", "L"],
@@ -139,6 +160,10 @@ async def test_team_list_uses_cached_response_without_querying_database() -> Non
             "name": "Celtics",
             "city": "Boston",
             "record": "4-1",
+            "conference": "East",
+            "conferenceRank": 1,
+            "lastTen": "4-1",
+            "streak": "W2",
             "stats": {
                 "teamAbbr": "BOS",
                 "form": ["W"],
@@ -168,3 +193,34 @@ async def test_team_list_uses_cached_response_without_querying_database() -> Non
     assert response.status_code == 200
     assert response.json() == cached_teams
     assert redis.set_calls == []
+
+
+@pytest.mark.asyncio
+async def test_team_list_falls_back_to_database_when_redis_fails() -> None:
+    team = Team(
+        abbr="BOS",
+        nba_id=1610612738,
+        name="Celtics",
+        city="Boston",
+        record="4-1",
+        conference="East",
+        conference_rank=1,
+        last_ten="4-1",
+        streak="W2",
+    )
+    team.stats = None
+    app = FastAPI()
+    app.state.redis = FailingRedis()
+    app.include_router(teams.router)
+
+    async def override_get_db() -> AsyncIterator[FakeSession]:
+        yield FakeSession([[team]])
+
+    app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/teams/")
+
+    assert response.status_code == 200
+    assert response.json()[0]["conference"] == "East"

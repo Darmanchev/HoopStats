@@ -56,6 +56,7 @@ export interface UpcomingGame {
   win1: number | null;
   prediction: string | null;
   factors?: Factor[];
+  startTime?: string | null;
 }
 
 export interface LiveGame extends UpcomingGame {

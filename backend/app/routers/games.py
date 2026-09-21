@@ -32,8 +32,8 @@ async def get_upcoming(db: AsyncSession = Depends(get_db)):
             selectinload(Game.home_team),  # ← eagerly load home team
             selectinload(Game.away_team),  # ← eagerly load away team
         )
-        .where(Game.score1 == None)
-        .order_by(Game.date)
+        .where(Game.status == "scheduled")
+        .order_by(Game.start_time.asc().nullslast(), Game.date, Game.time)
     )
     games = result.scalars().all()
 
@@ -51,6 +51,7 @@ async def get_upcoming(db: AsyncSession = Depends(get_db)):
             is_today=g.is_today,
             win1=g.win1,
             prediction=g.prediction,
+            start_time=g.start_time,
             home_team=g.home_team,  # ← автоматически из relationship
             away_team=g.away_team,  # ← автоматически из relationship
         )
@@ -74,7 +75,7 @@ async def get_today(request: Request, db: AsyncSession = Depends(get_db)):
             selectinload(Game.away_team),
         )
         .where(Game.is_today == True)
-        .order_by(Game.date, Game.time)
+        .order_by(Game.start_time.asc().nullslast(), Game.date, Game.time)
     )
     payload = [
         LiveGameSchema.model_validate(game).model_dump(
@@ -100,7 +101,7 @@ async def get_past(
         season_type: str | None = Query(None, pattern="^(regular|playoffs)$"),
         db: AsyncSession = Depends(get_db),
 ):
-    query = select(Game).where(Game.score1 != None)
+    query = select(Game).where(Game.status == "final")
     if season:
         query = query.where(Game.season == season)
     if season_type:
@@ -182,6 +183,7 @@ async def get_game(id: str, db: AsyncSession = Depends(get_db)):
         is_today=game.is_today,
         win1=game.win1,
         prediction=game.prediction,
+        start_time=game.start_time,
         status=game.status,
         status_text=game.status_text,
         period=game.period,

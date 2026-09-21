@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock
+from contextlib import asynccontextmanager
 
 import pytest
 from sqlalchemy.dialects import postgresql
@@ -14,6 +15,7 @@ LIVE_GAME = {
     "away_abbr": "BOS",
     "home_abbr": "LAL",
     "date": "2026-09-21",
+    "start_time": "2026-09-21T22:00:00Z",
     "status": "live",
     "status_text": "Q3 04:12",
     "period": 3,
@@ -35,6 +37,11 @@ PLAYER = {
     "blocks": 1,
     "minutes": 32.5,
 }
+
+
+@asynccontextmanager
+async def nested_transaction():
+    yield
 
 
 class ScalarResult:
@@ -170,6 +177,10 @@ async def test_sync_games_continues_after_one_boxscore_failure(
 
     class Session:
         commit = AsyncMock()
+        flush = AsyncMock()
+
+        def begin_nested(self):
+            return nested_transaction()
 
     db = Session()
     await sync_module.sync_games(db)  # type: ignore[arg-type]
@@ -180,6 +191,59 @@ async def test_sync_games_continues_after_one_boxscore_failure(
     invalidate.assert_awaited_once_with(
         [LIVE_GAME["game_id"], second_game["game_id"]]
     )
+
+
+@pytest.mark.asyncio
+async def test_sync_games_isolates_database_boxscore_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    second_game = {**LIVE_GAME, "game_id": "0022500003"}
+    monkeypatch.setattr(
+        sync_module.nba_client,
+        "fetch_live_scoreboard",
+        lambda: [LIVE_GAME, second_game],
+    )
+    monkeypatch.setattr(
+        sync_module.nba_client,
+        "fetch_live_boxscore",
+        lambda game_id: [{**PLAYER, "game_id": game_id}],
+    )
+    monkeypatch.setattr(
+        sync_module.games_repo,
+        "reset_today_flag",
+        AsyncMock(),
+    )
+    monkeypatch.setattr(
+        sync_module.games_repo,
+        "upsert_live_games",
+        AsyncMock(return_value=[LIVE_GAME["game_id"], second_game["game_id"]]),
+    )
+    upsert_players = AsyncMock(side_effect=[RuntimeError("constraint"), 1])
+    monkeypatch.setattr(
+        sync_module.player_stats_repo,
+        "upsert_player_game_stats",
+        upsert_players,
+    )
+    monkeypatch.setattr(sync_module, "invalidate_live_caches", AsyncMock())
+    monkeypatch.setattr(sync_module, "invalidate_elo_cache", AsyncMock())
+
+    class Session:
+        def __init__(self) -> None:
+            self.flush = AsyncMock()
+            self.commit = AsyncMock()
+            self.savepoints = 0
+
+        def begin_nested(self):
+            self.savepoints += 1
+            return nested_transaction()
+
+    db = Session()
+    await sync_module.sync_games(db)  # type: ignore[arg-type]
+
+    db.flush.assert_awaited_once_with()
+    assert db.savepoints == 2
+    assert upsert_players.await_count == 2
+    db.commit.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio

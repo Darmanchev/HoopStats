@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from app.services.clients import nba as nba_client
 
 
@@ -19,6 +21,7 @@ def test_parse_scoreboard_skips_invalid_games_and_normalizes_live_state() -> Non
         "away_abbr": "BOS",
         "home_abbr": "LAL",
         "date": "2026-09-21",
+        "start_time": "2026-09-21T22:00:00Z",
         "status": "live",
         "status_text": "Q3 04:12",
         "period": 3,
@@ -75,3 +78,27 @@ def test_parse_standings_returns_dashboard_fields() -> None:
         "last_ten": "7-3",
         "streak": "W3",
     }
+
+
+def test_invalid_scoreboard_envelope_is_not_treated_as_empty_day() -> None:
+    with pytest.raises(ValueError, match="scoreboard"):
+        nba_client.parse_live_scoreboard({})
+
+
+def test_scoreboard_skips_null_game_entries() -> None:
+    assert nba_client.parse_live_scoreboard({"scoreboard": {"games": [None]}}) == []
+
+
+def test_boxscore_skips_players_without_statistics() -> None:
+    data = {
+        "game": {
+            "gameId": "game-1",
+            "awayTeam": {
+                "teamTricode": "BOS",
+                "players": [{"personId": 1, "name": "Missing Stats"}],
+            },
+            "homeTeam": {"teamTricode": "LAL", "players": []},
+        }
+    }
+
+    assert nba_client.parse_live_boxscore(data) == []

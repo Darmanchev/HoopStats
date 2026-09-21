@@ -14,6 +14,7 @@ class LiveGameData(TypedDict):
     away_abbr: str
     home_abbr: str
     date: str
+    start_time: str
     status: Literal["scheduled", "live", "final"]
     status_text: str
     period: int | None

@@ -9,6 +9,16 @@ from ..utils import determine_season_type, schedule_season_type
 logger = logging.getLogger(__name__)
 
 
+def _parse_start_time(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        logger.warning("Invalid game start time %r", value)
+        return None
+
+
 async def reset_today_flag(db: AsyncSession) -> None:
     """Сбрасывает флаг is_today у всех игр."""
     await db.execute(update(Game).values(is_today=False))
@@ -40,6 +50,7 @@ async def upsert_live_games(
                 status_text=g["status_text"],
                 period=g["period"],
                 clock=g["clock"],
+                start_time=_parse_start_time(g["start_time"]),
                 score1=g["away_score"],
                 score2=g["home_score"],
             ))
@@ -54,6 +65,7 @@ async def upsert_live_games(
             game.status_text = g["status_text"]
             game.period = g["period"]
             game.clock = g["clock"]
+            game.start_time = _parse_start_time(g["start_time"])
             game.score1 = g["away_score"]
             game.score2 = g["home_score"]
         affected_ids.append(game_id)
@@ -103,6 +115,8 @@ async def upsert_historical_games(
         existing_game = existing.scalar_one_or_none()
         if existing_game:
             existing_game.is_today = False
+            existing_game.status = "final"
+            existing_game.status_text = "Final"
             if season_type == "playoffs":
                 existing_game.season_type = "playoffs"
             if existing_game.score1 is None and score1 is not None:
@@ -122,6 +136,8 @@ async def upsert_historical_games(
             season_type=season_type,
             score1=score1,
             score2=score2,
+            status="final",
+            status_text="Final",
         ))
         count += 1
 
@@ -162,12 +178,16 @@ async def upsert_schedule_games(
             game = existing.scalar_one_or_none()
 
             if game:
-                if game.score1 is not None:
+                if game.status != "scheduled":
                     continue
                 game.date = date
                 game.time = g.get("gameStatusText", "")
                 game.venue = g.get("arenaName", "") or ""
                 game.is_today = date == today
+                game.status = "scheduled"
+                game.start_time = _parse_start_time(
+                    g.get("gameDateTimeUTC") or g.get("gameDateEst")
+                )
                 count_updated += 1
             else:
                 db.add(Game(
@@ -183,6 +203,10 @@ async def upsert_schedule_games(
                     win1=50.0,
                     score1=None,
                     score2=None,
+                    status="scheduled",
+                    start_time=_parse_start_time(
+                        g.get("gameDateTimeUTC") or g.get("gameDateEst")
+                    ),
                 ))
                 count_new += 1
 

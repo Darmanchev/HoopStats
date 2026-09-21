@@ -18,6 +18,7 @@ export default function Dashboard() {
     upcoming,
     leaders,
     featuredGame,
+    boxScoreGame,
     boxScore,
     initialLoading,
     refreshing,
@@ -117,7 +118,7 @@ export default function Dashboard() {
         </div>
 
         <div className="h-full">
-          <LiveGameStatsWidget game={featuredGame} players={boxScore} />
+          <LiveGameStatsWidget game={boxScoreGame} players={boxScore} />
         </div>
       </div>
     </div>

@@ -150,6 +150,54 @@ describe("useDashboard", () => {
     expect(mockedGetBoxScore).toHaveBeenCalledWith(liveGame.id);
   });
 
+  it("loads the latest final box score even when an upcoming game is featured", async () => {
+    const finalGame: LiveGame = {
+      ...liveGame,
+      id: "final-1",
+      status: "final",
+      statusText: "Final",
+      clock: null,
+      score1: 110,
+      score2: 104,
+    };
+    mockedGetTodayGames.mockResolvedValueOnce([finalGame]);
+    const { result } = renderHook(() => useDashboard());
+
+    await waitFor(() => expect(result.current.initialLoading).toBe(false));
+
+    expect(result.current.featuredGame?.id).toBe(upcomingGame.id);
+    expect(result.current.boxScoreGame?.id).toBe(finalGame.id);
+    expect(mockedGetBoxScore).toHaveBeenCalledWith(finalGame.id);
+  });
+
+  it("clears players when a different game's box score fails", async () => {
+    const firstRows = [{
+      nbaId: 101,
+      name: "Test Player",
+      teamAbbr: "BOS",
+      points: 20,
+      rebounds: 5,
+      assists: 4,
+      steals: 1,
+      blocks: 0,
+      minutes: 30,
+    }];
+    mockedGetBoxScore.mockResolvedValueOnce(firstRows);
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.boxScore).toEqual(firstRows));
+
+    const nextGame = { ...liveGame, id: "live-2" };
+    mockedGetTodayGames.mockResolvedValueOnce([nextGame]);
+    mockedGetBoxScore.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.boxScoreGame?.id).toBe(nextGame.id);
+    expect(result.current.boxScore).toEqual([]);
+    expect(result.current.errors.boxScore).toBe("offline");
+  });
+
   it("clears the refresh timer when unmounted", () => {
     const clearIntervalSpy = vi.spyOn(window, "clearInterval");
     const { unmount } = renderHook(() => useDashboard());

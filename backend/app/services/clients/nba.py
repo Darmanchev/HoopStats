@@ -92,8 +92,15 @@ def parse_standings(data: dict[str, Any]) -> dict[int, StandingData]:
 
 
 def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
+    board = data.get("scoreboard")
+    if not isinstance(board, dict) or not isinstance(board.get("games"), list):
+        raise ValueError("Invalid live scoreboard envelope")
+
     games: list[LiveGameData] = []
-    for raw in (data.get("scoreboard") or {}).get("games") or []:
+    for raw in board["games"]:
+        if not isinstance(raw, dict):
+            logger.warning("Skipping malformed live scoreboard entry")
+            continue
         game_id = str(raw.get("gameId") or "")
         away = raw.get("awayTeam") or {}
         home = raw.get("homeTeam") or {}
@@ -111,6 +118,7 @@ def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
                 "away_abbr": away_abbr,
                 "home_abbr": home_abbr,
                 "date": game_date,
+                "start_time": str(raw.get("gameEt") or ""),
                 "status": status,
                 "status_text": str(raw.get("gameStatusText") or ""),
                 "period": _optional_int(raw.get("period")) or None,
@@ -136,6 +144,8 @@ def parse_live_boxscore(data: dict[str, Any]) -> list[LivePlayerStatData]:
         if not team_abbr:
             continue
         for raw in team.get("players") or []:
+            if not isinstance(raw, dict):
+                continue
             nba_id = _optional_int(raw.get("personId"))
             name = str(
                 raw.get("name")
@@ -147,7 +157,13 @@ def parse_live_boxscore(data: dict[str, Any]) -> list[LivePlayerStatData]:
             ).strip()
             if nba_id is None or not name:
                 continue
-            stats = raw.get("statistics") or {}
+            stats = raw.get("statistics")
+            if not isinstance(stats, dict):
+                logger.warning(
+                    "Skipping box-score player without statistics: %s",
+                    nba_id,
+                )
+                continue
             players.append(
                 {
                     "game_id": game_id,

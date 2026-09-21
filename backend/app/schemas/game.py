@@ -1,5 +1,5 @@
 from typing import Literal, Optional
-from datetime import date
+from datetime import date, datetime
 from pydantic import field_validator
 from .base import CamelModel
 from .team import TeamSchema
@@ -13,6 +13,7 @@ class GameBase(CamelModel):
     venue: str
     season_type: str = "regular"
     season: str = "2025-26"
+    start_time: datetime | None = None
 
     @field_validator("team1", "team2")
     @classmethod

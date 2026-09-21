@@ -1,6 +1,6 @@
 from pydantic import field_validator
 from .base import CamelModel
-from typing import Optional
+from typing import Literal, Optional
 from .team_stats import TeamStatsSchema
 
 class TeamSchema(CamelModel):
@@ -8,6 +8,10 @@ class TeamSchema(CamelModel):
     name: str
     city: str
     record: str
+    conference: Literal["East", "West"] | None = None
+    conference_rank: int | None = None
+    last_ten: str | None = None
+    streak: str | None = None
 
     @field_validator("abbr")
     @classmethod
