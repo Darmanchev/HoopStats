@@ -1,6 +1,8 @@
 """Shared cache keys and invalidation helpers."""
 
+import json
 import logging
+from typing import Any
 
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
@@ -17,6 +19,30 @@ TODAY_GAMES_CACHE_KEY = "api:games:today:v1"
 
 def box_score_cache_key(game_id: str) -> str:
     return f"api:game:{game_id}:boxscore:v1"
+
+
+async def get_cached_json(redis: Redis, key: str) -> Any | None:
+    """Read JSON from Redis, falling back to the database on any cache error."""
+    try:
+        raw = await redis.get(key)
+        return json.loads(raw) if raw is not None else None
+    except (RedisError, json.JSONDecodeError, TypeError):
+        logger.exception("Failed to read cache key %s", key)
+        return None
+
+
+async def set_cached_json(
+    redis: Redis,
+    key: str,
+    value: Any,
+    *,
+    ttl: int,
+) -> None:
+    """Write JSON to Redis without failing a successful API response."""
+    try:
+        await redis.set(key, json.dumps(value), ex=ttl)
+    except (RedisError, TypeError):
+        logger.exception("Failed to write cache key %s", key)
 
 
 async def invalidate_elo_cache() -> None:

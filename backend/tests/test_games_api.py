@@ -45,6 +45,8 @@ def make_game(
         prediction=prediction,
         score1=None,
         score2=None,
+        status="scheduled",
+        status_text="",
     )
     game.home_team = Team(
         abbr="BOS",
@@ -104,6 +106,12 @@ async def test_match_detail_returns_prediction_and_team_details() -> None:
         "isToday": False,
         "win1": 61.2,
         "prediction": "Boston has the stronger recent form.",
+        "status": "scheduled",
+        "statusText": "",
+        "period": None,
+        "clock": None,
+        "score1": None,
+        "score2": None,
         "homeTeam": {
             "abbr": "BOS",
             "name": "Celtics",

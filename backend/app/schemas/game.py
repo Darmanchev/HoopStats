@@ -1,4 +1,4 @@
-from typing import Optional 
+from typing import Literal, Optional
 from datetime import date
 from pydantic import field_validator
 from .base import CamelModel
@@ -55,6 +55,19 @@ class UpcomingGameSchema(GameBase):
         if v is not None and len(v) > 1000:
             raise ValueError("Prediction must be under 1000 characters")
         return v
+
+
+class LiveGameSchema(UpcomingGameSchema):
+    status: Literal["scheduled", "live", "final"]
+    status_text: str
+    period: int | None = None
+    clock: str | None = None
+    score1: int | None = None
+    score2: int | None = None
+
+
+class GameDetailSchema(LiveGameSchema):
+    pass
 
 class PastGameSchema(GameBase):
     score1: int
