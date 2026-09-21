@@ -85,8 +85,9 @@ def test_invalid_scoreboard_envelope_is_not_treated_as_empty_day() -> None:
         nba_client.parse_live_scoreboard({})
 
 
-def test_scoreboard_skips_null_game_entries() -> None:
-    assert nba_client.parse_live_scoreboard({"scoreboard": {"games": [None]}}) == []
+def test_nonempty_scoreboard_with_only_invalid_entries_is_rejected() -> None:
+    with pytest.raises(ValueError, match="valid games"):
+        nba_client.parse_live_scoreboard({"scoreboard": {"games": [None]}})
 
 
 def test_boxscore_skips_players_without_statistics() -> None:
@@ -96,6 +97,25 @@ def test_boxscore_skips_players_without_statistics() -> None:
             "awayTeam": {
                 "teamTricode": "BOS",
                 "players": [{"personId": 1, "name": "Missing Stats"}],
+            },
+            "homeTeam": {"teamTricode": "LAL", "players": []},
+        }
+    }
+
+    assert nba_client.parse_live_boxscore(data) == []
+
+
+def test_boxscore_skips_incomplete_statistics() -> None:
+    data = {
+        "game": {
+            "gameId": "game-1",
+            "awayTeam": {
+                "teamTricode": "BOS",
+                "players": [{
+                    "personId": 1,
+                    "name": "Incomplete Stats",
+                    "statistics": {"points": 12},
+                }],
             },
             "homeTeam": {"teamTricode": "LAL", "players": []},
         }

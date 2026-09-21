@@ -170,6 +170,30 @@ describe("useDashboard", () => {
     expect(mockedGetBoxScore).toHaveBeenCalledWith(finalGame.id);
   });
 
+  it("selects the most recent final game by normalized start time", async () => {
+    const olderFinal: LiveGame = {
+      ...liveGame,
+      id: "final-older",
+      status: "final",
+      statusText: "Final",
+      time: "Final",
+      startTime: "2026-09-21T18:00:00Z",
+    };
+    const newerFinal: LiveGame = {
+      ...olderFinal,
+      id: "final-newer",
+      startTime: "2026-09-21T22:00:00Z",
+    };
+    mockedGetUpcomingGames.mockResolvedValueOnce([]);
+    mockedGetTodayGames.mockResolvedValueOnce([olderFinal, newerFinal]);
+    const { result } = renderHook(() => useDashboard());
+
+    await waitFor(() => expect(result.current.initialLoading).toBe(false));
+
+    expect(result.current.featuredGame?.id).toBe(newerFinal.id);
+    expect(result.current.boxScoreGame?.id).toBe(newerFinal.id);
+  });
+
   it("clears players when a different game's box score fails", async () => {
     const firstRows = [{
       nbaId: 101,

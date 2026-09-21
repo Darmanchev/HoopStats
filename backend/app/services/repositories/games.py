@@ -110,6 +110,10 @@ async def upsert_historical_games(
 
         score1 = int(g1["PTS"]) if g1["PTS"] else None
         score2 = int(g2["PTS"]) if g2["PTS"] else None
+        final_scores = {
+            str(g1["TEAM_ABBREVIATION"]): score1,
+            str(g2["TEAM_ABBREVIATION"]): score2,
+        }
 
         existing = await db.execute(select(Game).where(Game.id == game_id))
         existing_game = existing.scalar_one_or_none()
@@ -119,9 +123,11 @@ async def upsert_historical_games(
             existing_game.status_text = "Final"
             if season_type == "playoffs":
                 existing_game.season_type = "playoffs"
-            if existing_game.score1 is None and score1 is not None:
-                existing_game.score1 = score1
-                existing_game.score2 = score2
+            team1_score = final_scores.get(existing_game.team1)
+            team2_score = final_scores.get(existing_game.team2)
+            if team1_score is not None and team2_score is not None:
+                existing_game.score1 = team1_score
+                existing_game.score2 = team2_score
             continue
 
         db.add(Game(

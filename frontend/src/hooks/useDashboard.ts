@@ -28,6 +28,19 @@ interface DashboardData {
   leaders: Record<string, Player[]>;
 }
 
+function gameTimestamp(game: LiveGame): number {
+  const parsed = Date.parse(
+    game.startTime ?? `${game.date}T${game.time || "00:00"}`,
+  );
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function selectLatestFinalGame(today: LiveGame[]): LiveGame | null {
+  return [...today]
+    .filter((game) => game.status === "final")
+    .sort((left, right) => gameTimestamp(right) - gameTimestamp(left))[0] ?? null;
+}
+
 function errorMessage(reason: unknown): string {
   if (reason instanceof Error) return reason.message;
   if (typeof reason === "object" && reason !== null && "message" in reason) {
@@ -48,13 +61,7 @@ function selectFeaturedGame(
 
   if (upcoming.length > 0) return upcoming[0];
 
-  return [...today]
-    .filter((game) => game.status === "final")
-    .sort((left, right) => {
-      const leftTime = Date.parse(`${left.date}T${left.time || "00:00"}`);
-      const rightTime = Date.parse(`${right.date}T${right.time || "00:00"}`);
-      return rightTime - leftTime;
-    })[0] ?? null;
+  return selectLatestFinalGame(today);
 }
 
 function supportsBoxScore(
@@ -69,15 +76,7 @@ function selectBoxScoreGame(today: LiveGame[]): LiveGame | null {
   const live = today.find((game) => game.status === "live");
   if (live) return live;
 
-  return [...today]
-    .filter((game) => game.status === "final")
-    .sort((left, right) => {
-      const leftTime = Date.parse(left.startTime ?? `${left.date}T${left.time || "00:00"}`);
-      const rightTime = Date.parse(right.startTime ?? `${right.date}T${right.time || "00:00"}`);
-      const safeLeft = Number.isNaN(leftTime) ? 0 : leftTime;
-      const safeRight = Number.isNaN(rightTime) ? 0 : rightTime;
-      return safeRight - safeLeft;
-    })[0] ?? null;
+  return selectLatestFinalGame(today);
 }
 
 export function useDashboard() {

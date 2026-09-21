@@ -101,6 +101,42 @@ async def test_live_game_updates_scores_before_final() -> None:
 
 
 @pytest.mark.asyncio
+async def test_historical_sync_reconciles_partial_live_score_to_final() -> None:
+    game = Game(
+        id="0022500002",
+        team1="BOS",
+        team2="LAL",
+        date="2026-09-21",
+        time="Q3",
+        venue="",
+        status="live",
+        score1=70,
+        score2=65,
+    )
+
+    class Session(ExistingGameSession):
+        commit = AsyncMock()
+
+    session = Session(game)
+    headers = ["GAME_ID", "TEAM_ABBREVIATION", "GAME_DATE", "PTS"]
+    rows = [
+        [game.id, "LAL", game.date, 104],
+        [game.id, "BOS", game.date, 110],
+    ]
+
+    await games_repo.upsert_historical_games(
+        session,  # type: ignore[arg-type]
+        headers,
+        rows,
+        "2026-27",
+        "regular",
+    )
+
+    assert game.status == "final"
+    assert (game.score1, game.score2) == (110, 104)
+
+
+@pytest.mark.asyncio
 async def test_reset_today_only_updates_today_flag() -> None:
     session = RecordingSession()
 

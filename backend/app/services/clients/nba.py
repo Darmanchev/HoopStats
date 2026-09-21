@@ -96,14 +96,18 @@ def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
     if not isinstance(board, dict) or not isinstance(board.get("games"), list):
         raise ValueError("Invalid live scoreboard envelope")
 
+    raw_games = board["games"]
     games: list[LiveGameData] = []
-    for raw in board["games"]:
+    for raw in raw_games:
         if not isinstance(raw, dict):
             logger.warning("Skipping malformed live scoreboard entry")
             continue
         game_id = str(raw.get("gameId") or "")
-        away = raw.get("awayTeam") or {}
-        home = raw.get("homeTeam") or {}
+        away = raw.get("awayTeam")
+        home = raw.get("homeTeam")
+        if not isinstance(away, dict) or not isinstance(home, dict):
+            logger.warning("Skipping live game with malformed teams: %r", game_id)
+            continue
         away_abbr = str(away.get("teamTricode") or "")
         home_abbr = str(home.get("teamTricode") or "")
         game_date = str(raw.get("gameEt") or "")[:10]
@@ -128,22 +132,31 @@ def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
                 "venue": str(raw.get("arenaName") or ""),
             }
         )
+    if raw_games and not games:
+        raise ValueError("Live scoreboard contained no valid games")
     return games
 
 
 def parse_live_boxscore(data: dict[str, Any]) -> list[LivePlayerStatData]:
-    game = data.get("game") or {}
+    game = data.get("game")
+    if not isinstance(game, dict):
+        return []
     game_id = str(game.get("gameId") or "")
     if not game_id:
         return []
 
     players: list[LivePlayerStatData] = []
     for side in ("awayTeam", "homeTeam"):
-        team = game.get(side) or {}
+        team = game.get(side)
+        if not isinstance(team, dict):
+            continue
         team_abbr = str(team.get("teamTricode") or "")
         if not team_abbr:
             continue
-        for raw in team.get("players") or []:
+        raw_players = team.get("players")
+        if not isinstance(raw_players, list):
+            continue
+        for raw in raw_players:
             if not isinstance(raw, dict):
                 continue
             nba_id = _optional_int(raw.get("personId"))
@@ -164,15 +177,24 @@ def parse_live_boxscore(data: dict[str, Any]) -> list[LivePlayerStatData]:
                     nba_id,
                 )
                 continue
+            points = _optional_int(stats.get("points"))
+            rebounds = _optional_int(stats.get("reboundsTotal"))
+            assists = _optional_int(stats.get("assists"))
+            if points is None or rebounds is None or assists is None:
+                logger.warning(
+                    "Skipping box-score player with incomplete statistics: %s",
+                    nba_id,
+                )
+                continue
             players.append(
                 {
                     "game_id": game_id,
                     "nba_id": nba_id,
                     "name": name,
                     "team_abbr": team_abbr,
-                    "points": _optional_int(stats.get("points")) or 0,
-                    "rebounds": _optional_int(stats.get("reboundsTotal")) or 0,
-                    "assists": _optional_int(stats.get("assists")) or 0,
+                    "points": points,
+                    "rebounds": rebounds,
+                    "assists": assists,
                     "steals": _optional_int(stats.get("steals")) or 0,
                     "blocks": _optional_int(stats.get("blocks")) or 0,
                     "minutes": _minutes_float(stats.get("minutes")),
