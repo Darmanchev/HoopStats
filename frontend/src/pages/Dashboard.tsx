@@ -31,6 +31,21 @@ export default function Dashboard() {
   const upcomingList = upcoming.slice(0, 3);
   const topPlayer = leaders.pts?.[0] ?? Object.values(leaders)[0]?.[0] ?? null;
   const hasRefreshWarning = Object.keys(errors).length > 0;
+  const efficiencyCandidates = Object.values(teams)
+    .filter((team) => (team.stats?.lastScores.length ?? 0) > 0)
+    .sort((left, right) => (
+      (left.conferenceRank ?? Number.MAX_SAFE_INTEGER)
+      - (right.conferenceRank ?? Number.MAX_SAFE_INTEGER)
+    ));
+  const featuredEfficiencyTeam = featuredGame
+    ? [featuredGame.team1, featuredGame.team2].find(
+        (abbr) => (teams[abbr]?.stats?.lastScores.length ?? 0) > 0,
+      )
+    : undefined;
+  const selectedEfficiencyTeam = efficiencyTeam
+    ?? featuredEfficiencyTeam
+    ?? efficiencyCandidates[0]?.abbr
+    ?? null;
 
   return (
     <div className="max-w-[1300px] mx-auto pb-10">
@@ -94,8 +109,9 @@ export default function Dashboard() {
           <div className="h-[280px]">
             <TeamEfficiencyChart
               teams={teams}
-              selectedAbbr={efficiencyTeam}
+              selectedAbbr={selectedEfficiencyTeam}
               onSelect={setEfficiencyTeam}
+              onOpen={(teamAbbr) => navigate(`/teams/${teamAbbr}`)}
             />
           </div>
         </div>

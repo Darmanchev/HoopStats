@@ -173,24 +173,28 @@ describe("dashboard widgets", () => {
   it("filters standings by conference", async () => {
     render(<StandingsWidget teams={teams} />);
 
-    expect(screen.getByText("Celtics")).toBeInTheDocument();
-    expect(screen.queryByText("Lakers")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "West" }));
     expect(screen.getByText("Lakers")).toBeInTheDocument();
     expect(screen.queryByText("Celtics")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "East" }));
+    expect(screen.getByText("Celtics")).toBeInTheDocument();
+    expect(screen.queryByText("Lakers")).not.toBeInTheDocument();
   });
 
   it("calculates efficiency average from the selected team's scores", async () => {
     const onSelect = vi.fn();
+    const onOpen = vi.fn();
     render(
       <TeamEfficiencyChart
         teams={teams}
         selectedAbbr="BOS"
         onSelect={onSelect}
+        onOpen={onOpen}
       />,
     );
 
     expect(screen.getByText("110.0")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "View Data" }));
+    expect(onOpen).toHaveBeenCalledWith("BOS");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Team" }), "LAL");
     expect(onSelect).toHaveBeenCalledWith("LAL");
   });

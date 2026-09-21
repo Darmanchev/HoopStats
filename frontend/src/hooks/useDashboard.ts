@@ -102,6 +102,7 @@ export function useDashboard() {
     const nextData = { ...dataRef.current };
     const nextErrors: DashboardErrors = {};
     const [teamsResult, upcomingResult, todayResult, leadersResult] = results;
+    const primaryRefreshSucceeded = results.some((result) => result.status === "fulfilled");
 
     if (teamsResult.status === "fulfilled") {
       nextData.teams = teamsResult.value;
@@ -149,7 +150,7 @@ export function useDashboard() {
 
     if (!mountedRef.current) return;
     setErrors(nextErrors);
-    setLastUpdated(new Date());
+    if (primaryRefreshSucceeded) setLastUpdated(new Date());
     loadedRef.current = true;
     setInitialLoading(false);
     setRefreshing(false);

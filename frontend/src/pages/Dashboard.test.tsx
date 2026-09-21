@@ -117,6 +117,9 @@ describe("Dashboard", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "View Profile" }));
     expect(screen.getByTestId("location")).toHaveTextContent("/players/2544");
+
+    await userEvent.click(screen.getByRole("button", { name: "View Data" }));
+    expect(screen.getByTestId("location")).toHaveTextContent("/teams/BOS");
   });
 
   it("keeps widgets visible and warns when refresh data is incomplete", () => {

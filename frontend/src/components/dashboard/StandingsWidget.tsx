@@ -21,7 +21,7 @@ function recordParts(record: string) {
 }
 
 export default function StandingsWidget({ teams }: Props) {
-  const [conference, setConference] = useState<Conference>("East");
+  const [conference, setConference] = useState<Conference>("West");
   const standings = Object.values(teams)
     .filter((team) => team.conference === conference)
     .map((team) => ({ team, ...recordParts(team.record) }))

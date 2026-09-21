@@ -35,6 +35,9 @@ export default function FeaturedGameWidget({ game, team1, team2, onOpen = () => 
       <div className="mb-6">
         <h2 className="font-display font-semibold text-[18px] text-ink">Featured Game:</h2>
         <p className="text-[14px] text-muted">{team1.city} {team1.name} vs. {team2.city} {team2.name}</p>
+        {status === "scheduled" && (
+          <p className="mt-1 text-[12px] text-faint">{game.date} · {game.venue || "Venue TBA"}</p>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col justify-center">
@@ -60,7 +63,9 @@ export default function FeaturedGameWidget({ game, team1, team2, onOpen = () => 
             />
           </div>
           {status === "scheduled" && game.prediction && (
-            <p className="mt-2 text-center text-[12px] text-muted">Prediction: {game.prediction}</p>
+            <p className="mt-2 text-center text-[12px] text-muted">
+              Prediction: {game.prediction} · {game.team1} {game.win1 ?? 50}% win probability
+            </p>
           )}
         </div>
       </div>

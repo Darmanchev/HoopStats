@@ -125,6 +125,22 @@ describe("useDashboard", () => {
     expect(result.current.today).toEqual([liveGame]);
   });
 
+  it("keeps the previous update time when every primary refresh fails", async () => {
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.lastUpdated).not.toBeNull());
+    const successfulUpdate = result.current.lastUpdated;
+
+    mockedGetTeams.mockRejectedValueOnce(new Error("offline"));
+    mockedGetUpcomingGames.mockRejectedValueOnce(new Error("offline"));
+    mockedGetTodayGames.mockRejectedValueOnce(new Error("offline"));
+    mockedGetLeaders.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.lastUpdated).toBe(successfulUpdate);
+  });
+
   it("selects a live featured game and loads its box score", async () => {
     const { result } = renderHook(() => useDashboard());
 
