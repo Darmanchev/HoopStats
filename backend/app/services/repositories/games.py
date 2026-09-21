@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from ...models.game import Game
+from ..clients.types import LiveGameData
 from ..utils import determine_season_type, schedule_season_type
 
 logger = logging.getLogger(__name__)
@@ -13,19 +14,14 @@ async def reset_today_flag(db: AsyncSession) -> None:
     await db.execute(update(Game).values(is_today=False))
 
 
-async def upsert_live_games(db: AsyncSession, games_data: list[dict]) -> int:
-    """Создаёт или обновляет сегодняшние игры из live scoreboard.
-    
-    games_data — список словарей от NBA live scoreboard API.
-    Возвращает количество обработанных игр.
-    """
-    count = 0
+async def upsert_live_games(
+    db: AsyncSession,
+    games_data: list[LiveGameData],
+) -> list[str]:
+    """Create or update today's normalized scoreboard games."""
+    affected_ids: list[str] = []
     for g in games_data:
-        game_id = str(g["gameId"])
-        home = g["homeTeam"]
-        away = g["awayTeam"]
-        status = g["gameStatusText"]
-        is_final = "Final" in status
+        game_id = g["game_id"]
 
         existing = await db.execute(select(Game).where(Game.id == game_id))
         game = existing.scalar_one_or_none()
@@ -33,24 +29,36 @@ async def upsert_live_games(db: AsyncSession, games_data: list[dict]) -> int:
         if not game:
             db.add(Game(
                 id=game_id,
-                team1=away["teamTricode"],
-                team2=home["teamTricode"],
-                date=g["gameEt"][:10],
-                time=status,
-                venue=g.get("arenaName", ""),
+                team1=g["away_abbr"],
+                team2=g["home_abbr"],
+                date=g["date"],
+                time=g["status_text"],
+                venue=g["venue"],
                 is_today=True,
-                season_type=determine_season_type(g["gameEt"]),
-                score1=away["score"] if is_final else None,
-                score2=home["score"] if is_final else None,
+                season_type=determine_season_type(g["date"]),
+                status=g["status"],
+                status_text=g["status_text"],
+                period=g["period"],
+                clock=g["clock"],
+                score1=g["away_score"],
+                score2=g["home_score"],
             ))
-            count += 1
-        elif is_final:
-            game.score1 = away["score"]
-            game.score2 = home["score"]
-            count += 1
+        else:
+            game.team1 = g["away_abbr"]
+            game.team2 = g["home_abbr"]
+            game.date = g["date"]
+            game.time = g["status_text"]
+            game.venue = g["venue"]
+            game.is_today = True
+            game.status = g["status"]
+            game.status_text = g["status_text"]
+            game.period = g["period"]
+            game.clock = g["clock"]
+            game.score1 = g["away_score"]
+            game.score2 = g["home_score"]
+        affected_ids.append(game_id)
 
-    await db.commit()
-    return count
+    return affected_ids
 
 
 async def upsert_historical_games(

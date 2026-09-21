@@ -2,6 +2,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ...models.team import Team
+from ..clients.types import StandingData
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 async def upsert_teams(
     db: AsyncSession,
     teams_data: list[dict],
-    records: dict[int, str],
+    records: dict[int, StandingData],
 ) -> int:
     """Создаёт или обновляет команды в БД.
     
@@ -21,7 +22,7 @@ async def upsert_teams(
     count_new = 0
     for t in teams_data:
         abbr = t["abbreviation"]
-        record = records.get(int(t["id"]), "0-0")
+        standing = records.get(int(t["id"]))
 
         existing = await db.execute(select(Team).where(Team.abbr == abbr))
         team = existing.scalar_one_or_none()
@@ -32,12 +33,23 @@ async def upsert_teams(
                 nba_id=t["id"],
                 name=t["nickname"],
                 city=t["city"],
-                record=record,
+                record=standing["record"] if standing else "0-0",
+                conference=standing["conference"] if standing else None,
+                conference_rank=(
+                    standing["conference_rank"] if standing else None
+                ),
+                last_ten=standing["last_ten"] if standing else None,
+                streak=standing["streak"] if standing else None,
             ))
             count_new += 1
         else:
-            team.record = record
             team.nba_id = t["id"]
+            if standing:
+                team.record = standing["record"]
+                team.conference = standing["conference"]
+                team.conference_rank = standing["conference_rank"]
+                team.last_ten = standing["last_ten"]
+                team.streak = standing["streak"]
 
     await db.commit()
     return count_new

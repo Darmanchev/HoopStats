@@ -10,13 +10,18 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..cache import invalidate_elo_cache, invalidate_teams_cache
+from ..cache import (
+    invalidate_elo_cache,
+    invalidate_live_caches,
+    invalidate_teams_cache,
+)
 from ..models.team import Team
 from .clients import espn as espn_client
 from .clients import nba as nba_client
 from .repositories import games as games_repo
 from .repositories import injuries as injuries_repo
 from .repositories import players as players_repo
+from .repositories import player_game_stats as player_stats_repo
 from .repositories import team_stats as team_stats_repo
 from .repositories import teams as teams_repo
 from .utils import CURRENT_SEASON, parse_log_date
@@ -47,14 +52,37 @@ async def sync_games(db: AsyncSession) -> None:
         logger.error("Ошибка при загрузке игр: %s: %s", type(e).__name__, e)
         return
 
+    await games_repo.reset_today_flag(db)
     if not games_data:
+        await db.commit()
+        await invalidate_live_caches([])
         logger.info("Сегодня игр нет")
         return
 
-    await games_repo.reset_today_flag(db)
-    count = await games_repo.upsert_live_games(db, games_data)
+    affected_ids = await games_repo.upsert_live_games(db, games_data)
+    for game in games_data:
+        if game["status"] not in {"live", "final"}:
+            continue
+        try:
+            players = await asyncio.to_thread(
+                nba_client.fetch_live_boxscore,
+                game["game_id"],
+            )
+            await player_stats_repo.upsert_player_game_stats(
+                db,
+                game["game_id"],
+                players,
+            )
+        except Exception:
+            logger.exception(
+                "Box score sync failed for game %s",
+                game["game_id"],
+            )
+
+    await db.commit()
+    await invalidate_live_caches(affected_ids)
     await invalidate_elo_cache()
-    logger.info("Синхронизировано %d игр", count)
+    logger.info("Синхронизировано %d игр", len(affected_ids))
 
 
 async def sync_historical_games(db: AsyncSession, season: str = CURRENT_SEASON) -> None:
