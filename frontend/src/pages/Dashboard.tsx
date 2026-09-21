@@ -1,66 +1,108 @@
-import { useGames } from "../hooks/useGames";
-import { useTeams } from "../hooks/useTeams";
-import { LoadingState, ErrorState } from "../components/ui/PageState";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import UpcomingGamesWidget from "../components/dashboard/UpcomingGamesWidget";
 import FeaturedGameWidget from "../components/dashboard/FeaturedGameWidget";
-import TopPlayerWidget from "../components/dashboard/TopPlayerWidget";
-import StandingsWidget from "../components/dashboard/StandingsWidget";
 import LiveGameStatsWidget from "../components/dashboard/LiveGameStatsWidget";
+import StandingsWidget from "../components/dashboard/StandingsWidget";
 import TeamEfficiencyChart from "../components/dashboard/TeamEfficiencyChart";
+import TopPlayerWidget from "../components/dashboard/TopPlayerWidget";
+import UpcomingGamesWidget from "../components/dashboard/UpcomingGamesWidget";
+import { LoadingState } from "../components/ui/PageState";
+import { useDashboard } from "../hooks/useDashboard";
 
 export default function Dashboard() {
-  const { upcoming, loading: gamesLoading, error: gamesError } = useGames(
-    undefined,
-    false
-  );
-  const { teams, loading: teamsLoading, error: teamsError } = useTeams();
+  const navigate = useNavigate();
+  const [efficiencyTeam, setEfficiencyTeam] = useState<string | null>(null);
+  const {
+    teams,
+    upcoming,
+    leaders,
+    featuredGame,
+    boxScore,
+    initialLoading,
+    refreshing,
+    errors,
+    lastUpdated,
+    refresh,
+  } = useDashboard();
 
-  if (gamesLoading || teamsLoading) return <LoadingState />;
-  if (gamesError || teamsError) return <ErrorState message={gamesError || teamsError || ""} />;
+  if (initialLoading) return <LoadingState />;
 
-  // Берем ближайшие игры (не важно, сегодня они или нет)
   const upcomingList = upcoming.slice(0, 3);
-  const featured = upcoming.length > 0 ? upcoming[0] : null;
+  const topPlayer = leaders.pts?.[0] ?? Object.values(leaders)[0]?.[0] ?? null;
+  const hasRefreshWarning = Object.keys(errors).length > 0;
 
   return (
     <div className="max-w-[1300px] mx-auto pb-10">
-      <div className="mb-6">
-        <h1 className="font-display font-semibold text-[26px] text-ink">NBA Analytics Overview</h1>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display font-semibold text-[26px] text-ink">NBA Analytics Overview</h1>
+          <p className="mt-1 text-[12px] text-muted" aria-live="polite">
+            {refreshing
+              ? "Updating…"
+              : lastUpdated
+                ? `Last updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                : "Waiting for the first update"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          disabled={refreshing}
+          className="self-start rounded-full border border-line px-4 py-2 text-[12px] font-semibold text-ink transition-colors hover:bg-surface-2 disabled:cursor-wait disabled:opacity-60 sm:self-auto"
+        >
+          Refresh data
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_380px] gap-6">
-        
-        {/* Верхний ряд */}
-        <div className="h-auto xl:h-[300px]">
-          <UpcomingGamesWidget games={upcomingList} teams={teams} />
+      {hasRefreshWarning && (
+        <div
+          role="status"
+          className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] text-amber-900"
+        >
+          Some data could not be refreshed. Showing the latest available information.
         </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_380px] gap-6">
         <div className="h-auto xl:h-[300px]">
-          <FeaturedGameWidget 
-            game={featured} 
-            team1={featured ? teams[featured.team1] : null} 
-            team2={featured ? teams[featured.team2] : null} 
+          <UpcomingGamesWidget
+            games={upcomingList}
+            teams={teams}
+            onPreview={(gameId) => navigate(`/match/${gameId}`)}
           />
         </div>
         <div className="h-auto xl:h-[300px]">
-          <TopPlayerWidget />
+          <FeaturedGameWidget
+            game={featuredGame}
+            team1={featuredGame ? teams[featuredGame.team1] ?? null : null}
+            team2={featuredGame ? teams[featuredGame.team2] ?? null : null}
+            onOpen={(gameId) => navigate(`/match/${gameId}`)}
+          />
+        </div>
+        <div className="h-auto xl:h-[300px]">
+          <TopPlayerWidget
+            player={topPlayer}
+            onOpen={(playerId) => navigate(`/players/${playerId}`)}
+          />
         </div>
 
-        {/* Нижний ряд: левая часть занимает 2 колонки */}
         <div className="xl:col-span-2 flex flex-col gap-6">
           <div className="h-[320px]">
             <StandingsWidget teams={teams} />
           </div>
           <div className="h-[280px]">
-            <TeamEfficiencyChart />
+            <TeamEfficiencyChart
+              teams={teams}
+              selectedAbbr={efficiencyTeam}
+              onSelect={setEfficiencyTeam}
+            />
           </div>
         </div>
 
-        {/* Нижний ряд: правая часть занимает 1 колонку (380px) */}
         <div className="h-full">
-          <LiveGameStatsWidget />
+          <LiveGameStatsWidget game={featuredGame} players={boxScore} />
         </div>
-
       </div>
     </div>
   );
