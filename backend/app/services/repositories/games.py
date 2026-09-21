@@ -66,8 +66,9 @@ async def upsert_live_games(
             game.period = g["period"]
             game.clock = g["clock"]
             game.start_time = _parse_start_time(g["start_time"])
-            game.score1 = g["away_score"]
-            game.score2 = g["home_score"]
+            if g["away_score"] is not None and g["home_score"] is not None:
+                game.score1 = g["away_score"]
+                game.score2 = g["home_score"]
         affected_ids.append(game_id)
 
     return affected_ids

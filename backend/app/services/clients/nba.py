@@ -116,6 +116,16 @@ def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
             logger.warning("Skipping malformed live scoreboard game %r", game_id)
             continue
         has_score = status in {"live", "final"}
+        away_score = _optional_int(away.get("score")) if has_score else None
+        home_score = _optional_int(home.get("score")) if has_score else None
+        if has_score and (
+            away_score is None
+            or home_score is None
+            or away_score < 0
+            or home_score < 0
+        ):
+            logger.warning("Skipping game with incomplete scores: %r", game_id)
+            continue
         games.append(
             {
                 "game_id": game_id,
@@ -127,8 +137,8 @@ def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
                 "status_text": str(raw.get("gameStatusText") or ""),
                 "period": _optional_int(raw.get("period")) or None,
                 "clock": str(raw.get("gameClock") or "") or None,
-                "away_score": _optional_int(away.get("score")) if has_score else None,
-                "home_score": _optional_int(home.get("score")) if has_score else None,
+                "away_score": away_score,
+                "home_score": home_score,
                 "venue": str(raw.get("arenaName") or ""),
             }
         )

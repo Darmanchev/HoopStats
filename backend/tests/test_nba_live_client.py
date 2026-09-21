@@ -90,6 +90,27 @@ def test_nonempty_scoreboard_with_only_invalid_entries_is_rejected() -> None:
         nba_client.parse_live_scoreboard({"scoreboard": {"games": [None]}})
 
 
+@pytest.mark.parametrize("away_score", [None, -1])
+def test_final_scoreboard_game_requires_both_nonnegative_scores(
+    away_score: int | None,
+) -> None:
+    data = {
+        "scoreboard": {
+            "games": [{
+                "gameId": "game-1",
+                "gameEt": "2026-09-21T22:00:00Z",
+                "gameStatus": 3,
+                "gameStatusText": "Final",
+                "awayTeam": {"teamTricode": "BOS", "score": away_score},
+                "homeTeam": {"teamTricode": "LAL", "score": 104},
+            }]
+        }
+    }
+
+    with pytest.raises(ValueError, match="valid games"):
+        nba_client.parse_live_scoreboard(data)
+
+
 def test_boxscore_skips_players_without_statistics() -> None:
     data = {
         "game": {

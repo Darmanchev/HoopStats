@@ -101,6 +101,30 @@ async def test_live_game_updates_scores_before_final() -> None:
 
 
 @pytest.mark.asyncio
+async def test_incomplete_live_score_does_not_erase_stored_scores() -> None:
+    game = Game(
+        id=LIVE_GAME["game_id"],
+        team1="BOS",
+        team2="LAL",
+        date="2026-09-21",
+        time="Q3",
+        venue="Crypto.com Arena",
+        is_today=True,
+        status="live",
+        score1=78,
+        score2=74,
+    )
+    incomplete = {**LIVE_GAME, "away_score": None}
+
+    await games_repo.upsert_live_games(
+        ExistingGameSession(game),  # type: ignore[arg-type]
+        [incomplete],  # type: ignore[list-item]
+    )
+
+    assert (game.score1, game.score2) == (78, 74)
+
+
+@pytest.mark.asyncio
 async def test_historical_sync_reconciles_partial_live_score_to_final() -> None:
     game = Game(
         id="0022500002",
