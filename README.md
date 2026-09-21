@@ -72,6 +72,18 @@ make status
 make down
 ```
 
+The scheduler separates synchronization by cost:
+
+| Data | Interval |
+| --- | --- |
+| Live games | 15 minutes |
+| Schedule and injuries | 6 hours |
+| Teams, players, team statistics, current-season history, and predictions | 12 hours |
+
+After startup, live games sync immediately, schedule and injuries sync after
+two minutes, and the larger statistics sync starts after five minutes. Jobs are
+staggered and never run concurrently, which reduces load on the external APIs.
+
 ## Production deployment with Coolify
 
 Choose the Docker Compose build pack in Coolify and set **Docker Compose
@@ -118,6 +130,16 @@ Redis provides shared API rate-limit counters and a 24-hour Elo cache. A
 successful game sync invalidates the cache, so the first following request
 rebuilds current ratings once. The scheduler runs in a separate container, so
 multiple Uvicorn workers do not duplicate periodic synchronization jobs.
+
+For the first production deployment, open the Coolify terminal for the
+`scheduler` container and import older seasons once:
+
+```bash
+python -m scripts.seed --seasons 2023-24 2024-25 2025-26
+```
+
+Do not schedule old-season imports repeatedly. The 12-hour job refreshes only
+the current season.
 
 ## Architecture
 

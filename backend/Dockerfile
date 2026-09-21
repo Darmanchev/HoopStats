@@ -14,6 +14,7 @@ ENV PYTHONUNBUFFERED=1
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY backend/app ./app
+COPY backend/scripts ./scripts
 COPY backend/alembic ./alembic
 COPY backend/alembic.ini ./alembic.ini
 
