@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     allowed_hosts: str = "localhost,127.0.0.1,testserver"
     api_docs_enabled: bool = False
     elo_cache_ttl_seconds: int = 86_400
+    teams_cache_ttl_seconds: int = 300
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
     elo_rate_limit_requests: int = 10

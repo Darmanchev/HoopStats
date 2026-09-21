@@ -1,6 +1,10 @@
 import type { TeamStats, UpcomingGame, PastGame, Team, Injury, Player, PlayerDetail } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const TEAMS_MEMORY_CACHE_MS = 30_000;
+
+let teamsRequest: Promise<Record<string, Team>> | null = null;
+let teamsRequestExpiresAt = 0;
 
 interface ApiError {
   status: number;
@@ -64,9 +68,22 @@ export async function getMatch(id: string): Promise<UpcomingGame> {
   return fetcher(`/games/${id}`);
 }
 
-export async function getTeams(): Promise<Record<string, Team>> {
-  const list = await fetcher<(Team & { abbr: string })[]>("/teams/");
-  return Object.fromEntries(list.map((t) => [t.abbr, t]));
+export function getTeams(): Promise<Record<string, Team>> {
+  const now = Date.now();
+  if (teamsRequest && now < teamsRequestExpiresAt) {
+    return teamsRequest;
+  }
+
+  teamsRequestExpiresAt = now + TEAMS_MEMORY_CACHE_MS;
+  teamsRequest = fetcher<Team[]>("/teams/")
+    .then((list) => Object.fromEntries(list.map((team) => [team.abbr, team])))
+    .catch((error) => {
+      teamsRequest = null;
+      teamsRequestExpiresAt = 0;
+      throw error;
+    });
+
+  return teamsRequest;
 }
 
 export async function getTeamStats(abbr: string): Promise<TeamStats> {

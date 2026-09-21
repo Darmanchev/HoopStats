@@ -4,6 +4,7 @@ export interface Team {
   name: string;
   city: string;
   record: string;
+  stats?: TeamStats | null;
 }
 
 // Травма игрока (из API /injuries)

@@ -10,7 +10,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..cache import invalidate_elo_cache
+from ..cache import invalidate_elo_cache, invalidate_teams_cache
 from ..models.team import Team
 from .clients import espn as espn_client
 from .clients import nba as nba_client
@@ -35,6 +35,7 @@ async def sync_teams(db: AsyncSession) -> None:
     )
 
     count_new = await teams_repo.upsert_teams(db, raw_teams, records)
+    await invalidate_teams_cache()
     logger.info("Синхронизировано %d команд (%d новых)", len(raw_teams), count_new)
 
 
@@ -172,6 +173,7 @@ async def sync_team_stats(db: AsyncSession) -> None:
                 logger.error("Ошибка %s: %s: %s", team.abbr, type(e).__name__, e)
 
     await db.commit()
+    await invalidate_teams_cache()
     logger.info(
         "Статистика команд синхронизирована: %d успешно, %d ошибок",
         success_count, error_count,

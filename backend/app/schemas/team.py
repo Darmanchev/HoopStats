@@ -24,6 +24,10 @@ class TeamSchema(CamelModel):
             raise ValueError("Record must be in 'W-L' format (e.g. '52-28')")
         return v
 
-class TeamDetailSchema(TeamSchema):
+
+class TeamWithStatsSchema(TeamSchema):
     stats: Optional[TeamStatsSchema] = None
+
+
+class TeamDetailSchema(TeamWithStatsSchema):
     players_count: int = 0

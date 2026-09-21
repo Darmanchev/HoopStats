@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Team, TeamStats } from "../types";
-import { getTeams, getTeamStats } from "../lib/api";
+import { getTeams } from "../lib/api";
 
 export function useAllTeams() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -10,17 +10,13 @@ export function useAllTeams() {
 
   useEffect(() => {
     getTeams()
-      .then(async (teamsMap) => {
+      .then((teamsMap) => {
         const list = Object.values(teamsMap);
         setTeams(list);
 
-        const statsPromises = list.map((t) =>
-          getTeamStats(t.abbr).catch(() => null)
-        );
-        const results = await Promise.all(statsPromises);
         const statsMap: Record<string, TeamStats> = {};
-        list.forEach((t, i) => {
-          if (results[i]) statsMap[t.abbr] = results[i];
+        list.forEach((team) => {
+          if (team.stats) statsMap[team.abbr] = team.stats;
         });
         setStats(statsMap);
       })
