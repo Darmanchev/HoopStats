@@ -5,6 +5,10 @@ export interface Team {
   city: string;
   record: string;
   stats?: TeamStats | null;
+  conference?: "East" | "West" | null;
+  conferenceRank?: number | null;
+  lastTen?: string | null;
+  streak?: string | null;
 }
 
 // Травма игрока (из API /injuries)
@@ -49,9 +53,30 @@ export interface UpcomingGame {
   venue: string;
   seasonType: "regular" | "playoffs";
   season: string;
-  win1: number;
-  prediction: string;
-  factors: Factor[];
+  win1: number | null;
+  prediction: string | null;
+  factors?: Factor[];
+}
+
+export interface LiveGame extends UpcomingGame {
+  status: "scheduled" | "live" | "final";
+  statusText: string;
+  period: number | null;
+  clock: string | null;
+  score1: number | null;
+  score2: number | null;
+}
+
+export interface PlayerGameStat {
+  nbaId: number;
+  name: string;
+  teamAbbr: string;
+  points: number;
+  rebounds: number;
+  assists: number;
+  steals: number;
+  blocks: number;
+  minutes: number;
 }
 
 // Прошедший матч (из PAST)
