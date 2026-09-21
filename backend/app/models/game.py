@@ -18,6 +18,18 @@ class Game(Base):
     score1: Mapped[int] = mapped_column(Integer, nullable=True)
     score2: Mapped[int] = mapped_column(Integer, nullable=True)
     prediction: Mapped[str] = mapped_column(String(1000), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(12),
+        default="scheduled",
+        server_default="scheduled",
+    )
+    status_text: Mapped[str] = mapped_column(
+        String(50),
+        default="",
+        server_default="",
+    )
+    period: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    clock: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
 # relationship
     home_team = relationship("Team", back_populates="home_games", foreign_keys=[team1])

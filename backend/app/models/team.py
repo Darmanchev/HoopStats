@@ -10,6 +10,10 @@ class Team(Base):
     name: Mapped[str] = mapped_column(String(50))
     city: Mapped[str] = mapped_column(String(50))
     record: Mapped[str] = mapped_column(String(10))
+    conference: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    conference_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_ten: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    streak: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
 # relationships
 
