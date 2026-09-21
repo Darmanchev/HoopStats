@@ -39,7 +39,7 @@ def test_configure_scheduler_registers_staggered_jobs() -> None:
         "statistics",
     }
     assert jobs["live-games"].func is scheduler_module.sync_live_job
-    assert jobs["live-games"].trigger.interval == timedelta(minutes=15)
+    assert jobs["live-games"].trigger.interval == timedelta(minutes=5)
     assert jobs["live-games"].next_run_time == now
     assert jobs["schedule-and-injuries"].func is scheduler_module.sync_schedule_job
     assert jobs["schedule-and-injuries"].trigger.interval == timedelta(hours=6)

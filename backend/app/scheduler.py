@@ -9,6 +9,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import SessionLocal
+from app.config import settings
 from app.services import (
     sync_games,
     sync_historical_games,
@@ -92,7 +93,7 @@ def configure_scheduler(
 
     target.add_job(
         sync_live_job,
-        trigger=IntervalTrigger(minutes=15),
+        trigger=IntervalTrigger(minutes=settings.live_sync_minutes),
         id="live-games",
         next_run_time=first_run,
         max_instances=1,

@@ -98,6 +98,7 @@ services:
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
+      LIVE_SYNC_MINUTES: ${LIVE_SYNC_MINUTES:-5}
     depends_on:
       backend:
         condition: service_healthy
