@@ -29,8 +29,9 @@ export default function ScheduleCard({ game, team1, team2, onSelect }: Props) {
     c2 = game.score2 > game.score1 ? WIN : game.score2 < game.score1 ? LOSS : FAINT;
     status = "Final";
   } else {
-    v1 = `${game.win1.toFixed(1)}%`;
-    v2 = `${(100 - game.win1).toFixed(1)}%`;
+    const win1 = game.win1 ?? 50;
+    v1 = `${win1.toFixed(1)}%`;
+    v2 = `${(100 - win1).toFixed(1)}%`;
     c1 = getTeamColors(game.team1).accent;
     c2 = getTeamColors(game.team2).accent;
     status = game.time;

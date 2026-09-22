@@ -1,0 +1,39 @@
+{
+  "game": {
+    "gameId": "0022500002",
+    "awayTeam": {
+      "teamTricode": "BOS",
+      "players": [
+        {
+          "personId": 2544,
+          "name": "LeBron James",
+          "statistics": {
+            "points": 22,
+            "reboundsTotal": 7,
+            "assists": 8,
+            "steals": 2,
+            "blocks": 1,
+            "minutes": "PT32M30.00S"
+          }
+        }
+      ]
+    },
+    "homeTeam": {
+      "teamTricode": "LAL",
+      "players": [
+        {
+          "personId": 203999,
+          "name": "Nikola Jokic",
+          "statistics": {
+            "points": 20,
+            "reboundsTotal": 11,
+            "assists": 6,
+            "steals": 1,
+            "blocks": 0,
+            "minutes": "PT30M00.00S"
+          }
+        }
+      ]
+    }
+  }
+}

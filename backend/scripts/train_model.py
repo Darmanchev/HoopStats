@@ -1,7 +1,7 @@
 """Обучение ML-модели прогнозирования матчей.
 
 Загружает сыгранные игры из БД, обучает модель, сохраняет model.joblib.
-Запуск:  docker compose exec backend python train_model.py
+Запуск: docker compose exec backend python -m scripts.train_model
 """
 import asyncio
 

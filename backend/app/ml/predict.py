@@ -17,7 +17,7 @@ def load_model() -> dict:
     if _bundle is None:
         if not MODEL_PATH.exists():
             raise FileNotFoundError(
-                "Модель не обучена — запустите backend/train_model.py"
+                "Модель не обучена — запустите make train"
             )
         _bundle = joblib.load(MODEL_PATH)
     return _bundle

@@ -4,9 +4,10 @@ import TeamLogo from "../teams/TeamLogo";
 interface Props {
   games: UpcomingGame[];
   teams: Record<string, Team>;
+  onPreview?: (gameId: string) => void;
 }
 
-export default function UpcomingGamesWidget({ games, teams }: Props) {
+export default function UpcomingGamesWidget({ games, teams, onPreview = () => undefined }: Props) {
   // Форматируем дату первой игры
   const headerDate = games.length > 0 
     ? new Date(games[0].date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -35,7 +36,11 @@ export default function UpcomingGamesWidget({ games, teams }: Props) {
               <div className="flex flex-col items-center flex-1">
                 <span className="text-[13px] font-semibold text-ink">{g.time}</span>
                 <span className="text-[11px] text-muted text-center leading-tight mt-0.5 max-w-[100px] truncate">{g.venue || "TBA"}</span>
-                <button className="mt-2 px-4 py-1 bg-[#DCE9FD] text-[#1D4ED8] rounded-full text-[11px] font-semibold hover:bg-[#C5DAFC] transition-colors">
+                <button
+                  type="button"
+                  onClick={() => onPreview(g.id)}
+                  className="mt-2 px-4 py-1 bg-[#DCE9FD] text-[#1D4ED8] rounded-full text-[11px] font-semibold hover:bg-[#C5DAFC] transition-colors"
+                >
                   Preview
                 </button>
               </div>

@@ -4,7 +4,7 @@ LeagueDashPlayerStats (которым работает sync_players) позиц�
 поэтому позиция тянется отдельным запросом commonplayerinfo на каждого
 игрока. Запускать разово:
 
-    docker compose exec backend python backfill_positions.py
+    docker compose exec backend python -m scripts.backfill_positions
 
 Позиция нормализуется в одну букву (G / F / C), чтобы совпадать с фильтром
 на фронтенде и условием `Player.position == position.upper()` в роутере.

@@ -1,23 +1,37 @@
-# ENV файлы — никогда не заливать на GitHub
-frontend/.env
-backend/.env
-ml/.env
-.env
-.env.dev
-.env.prod
-!.env.prod.example
+# Environment files may contain secrets. Commit only the safe template.
+.env*
+!.env.example
 
-
+# Python
 __pycache__/
-*.pyc
-.claude/
+*.py[cod]
 .venv/
-data/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
 
+# Runtime data
+data/
+*.log
+
+# Frontend
 frontend/.vite/
 frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+.eslintcache
+npm-debug.log*
 
 # IDE
 .vscode/
 .idea/
 .DS_Store
+
+# Local development tools
+.claude/
+.superpowers/
+docs/
+opencode.json

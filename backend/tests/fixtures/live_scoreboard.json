@@ -1,0 +1,35 @@
+{
+  "scoreboard": {
+    "games": [
+      {
+        "gameId": "0022500001",
+        "gameEt": "2026-09-21T19:30:00Z",
+        "gameStatus": 1,
+        "gameStatusText": "7:30 PM ET",
+        "period": 0,
+        "gameClock": "",
+        "arenaName": "TD Garden",
+        "awayTeam": {"teamTricode": "NYK", "score": 0},
+        "homeTeam": {"teamTricode": "BOS", "score": 0}
+      },
+      {
+        "gameId": "0022500002",
+        "gameEt": "2026-09-21T22:00:00Z",
+        "gameStatus": 2,
+        "gameStatusText": "Q3 04:12",
+        "period": 3,
+        "gameClock": "PT04M12.00S",
+        "arenaName": "Crypto.com Arena",
+        "awayTeam": {"teamTricode": "BOS", "score": 78},
+        "homeTeam": {"teamTricode": "LAL", "score": 74}
+      },
+      {
+        "gameId": "",
+        "gameEt": "2026-09-21T23:00:00Z",
+        "gameStatus": 2,
+        "awayTeam": {},
+        "homeTeam": {"teamTricode": "DEN"}
+      }
+    ]
+  }
+}

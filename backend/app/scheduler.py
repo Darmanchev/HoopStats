@@ -1,64 +1,137 @@
 import asyncio
+import logging
 import signal
+from datetime import datetime, timedelta, timezone
+from collections.abc import Awaitable, Callable
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import SessionLocal
+from app.config import settings
 from app.services import (
-    sync_teams,
     sync_games,
-    sync_team_stats,
+    sync_historical_games,
     sync_injuries,
     sync_players,
+    sync_predictions,
+    sync_schedule,
+    sync_team_stats,
+    sync_teams,
 )
 
-scheduler = AsyncIOScheduler()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
-async def run_sync():
-    """Запускает полную синхронизацию данных"""
-    print(f"\n{'='*50}")
-    print(f"ЗАПУСК АВТОМАТИЧЕСКОЙ СИНХРОНИЗАЦИИ: {asyncio.get_event_loop().time()}")
-    print(f"{'='*50}\n")
-    
-    async with SessionLocal() as db:
-        try:
-            print("=== Syncing teams ===")
-            await sync_teams(db)
-            
-            print("\n=== Syncing today's games ===")
-            await sync_games(db)
-            
-            print("\n=== Syncing team stats ===")
-            await sync_team_stats(db)
-            
-            print("\n=== Syncing players ===")
-            await sync_players(db)
-            
-            print("\n=== Syncing injuries ===")
-            await sync_injuries(db)
-            
-            print(f"\n{'='*50}")
-            print("СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА УСПЕШНО")
-            print(f"{'='*50}\n")
-        except Exception as e:
-            print(f"\nОШИБКА СИНХРОНИЗАЦИИ: {type(e).__name__}: {e}\n")
+logger = logging.getLogger(__name__)
 
-def start_scheduler():
-    """Запускает scheduler с интервалом 12 часов"""
-    scheduler.add_job(
-        run_sync,
-        trigger=IntervalTrigger(hours=12),
-        id="nba_sync",
-        name="NBA Data Sync",
-        replace_existing=True,
-        max_instances=1,
+scheduler = AsyncIOScheduler(timezone="UTC")
+sync_lock = asyncio.Lock()
+
+SyncStep = Callable[[AsyncSession], Awaitable[None]]
+
+
+async def run_steps(name: str, *steps: SyncStep) -> None:
+    if sync_lock.locked():
+        logger.warning("Skipping %s sync because another sync is running", name)
+        return
+
+    async with sync_lock:
+        logger.info("Starting %s sync", name)
+
+        async with SessionLocal() as db:
+            for step in steps:
+                try:
+                    await step(db)
+                except Exception:
+                    await db.rollback()
+                    logger.exception(
+                        "%s failed during %s",
+                        name,
+                        step.__name__,
+                    )
+
+        logger.info("Finished %s sync", name)
+
+
+async def sync_live_job() -> None:
+    await run_steps(
+        "live games",
+        sync_games,
     )
-    scheduler.start()
-    print("Scheduler запущен: синхронизация каждые 12 часов")
 
-def stop_scheduler():
-    """Останавливает scheduler"""
+
+async def sync_schedule_job() -> None:
+    await run_steps(
+        "schedule and injuries",
+        sync_schedule,
+        sync_injuries,
+    )
+
+
+async def sync_statistics_job() -> None:
+    await run_steps(
+        "statistics",
+        sync_teams,
+        sync_players,
+        sync_team_stats,
+        sync_historical_games,
+        sync_predictions,
+    )
+
+
+def configure_scheduler(
+    target: AsyncIOScheduler,
+    *,
+    now: datetime | None = None,
+) -> None:
+    """Register staggered synchronization jobs on ``target``."""
+    first_run = now or datetime.now(timezone.utc)
+
+    target.add_job(
+        sync_live_job,
+        trigger=IntervalTrigger(minutes=settings.live_sync_minutes),
+        id="live-games",
+        next_run_time=first_run,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300,
+        replace_existing=True,
+    )
+
+    target.add_job(
+        sync_schedule_job,
+        trigger=IntervalTrigger(hours=6),
+        id="schedule-and-injuries",
+        next_run_time=first_run + timedelta(minutes=2),
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+        replace_existing=True,
+    )
+
+    target.add_job(
+        sync_statistics_job,
+        trigger=IntervalTrigger(hours=12),
+        id="statistics",
+        next_run_time=first_run + timedelta(minutes=5),
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+        replace_existing=True,
+    )
+
+
+def start_scheduler() -> None:
+    configure_scheduler(scheduler)
+    scheduler.start()
+    logger.info("Synchronization scheduler started")
+
+
+def stop_scheduler() -> None:
     if scheduler.running:
         scheduler.shutdown()
 

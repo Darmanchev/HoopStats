@@ -19,6 +19,7 @@ export default function ScheduleRow({
 }: Props) {
   const isPast = "score1" in game; // отличаем прошедший от предстоящего
   const clickable = !isPast && !!onSelect;
+  const win1 = "win1" in game ? (game.win1 ?? 50) : 50;
 
   return (
     <div
@@ -96,14 +97,14 @@ export default function ScheduleRow({
               className="font-display font-bold text-sm"
               style={{ color: getTeamColors(game.team1).accent }}
             >
-              {game.win1}%
+              {win1}%
             </span>
             <span className="text-[11px] text-faint">·</span>
             <span
               className="font-display font-bold text-sm"
               style={{ color: getTeamColors(game.team2).accent }}
             >
-              {100 - game.win1}%
+              {100 - win1}%
             </span>
           </div>
           {onSelect && (

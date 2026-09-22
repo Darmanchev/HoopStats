@@ -10,14 +10,12 @@ export function useMatch(id: string | undefined) {
   const [game, setGame] = useState<UpcomingGame | null>(null);
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [stats, setStats] = useState<Record<string, TeamStats>>({});
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [completedRequest, setCompletedRequest] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     Promise.all([getMatch(id), getTeams()])
       .then(([gameData, teamsData]) => {
@@ -31,15 +29,22 @@ export function useMatch(id: string | undefined) {
         ]).then(([s1, s2]) => {
           if (cancelled) return;
           setStats({ [gameData.team1]: s1, [gameData.team2]: s2 });
+          setError(null);
         });
       })
       .catch((e) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => !cancelled && setCompletedRequest(id));
 
     return () => {
       cancelled = true;
     };
   }, [id]);
 
-  return { game, teams, stats, loading, error };
+  return {
+    game,
+    teams,
+    stats,
+    loading: Boolean(id) && completedRequest !== id,
+    error,
+  };
 }
