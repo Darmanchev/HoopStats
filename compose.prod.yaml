@@ -73,7 +73,9 @@ services:
     logging: *default-logging
 
   db_roles:
-    image: postgres:17
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
     environment:
       PGHOST: db
       PGUSER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -91,8 +93,6 @@ services:
         --set=app_db_name="$$PGDATABASE"
         --set=owner_user="$$PGUSER"
         --file=/configure-runtime-role.sql
-    volumes:
-      - ./docker/postgres/configure-runtime-role.sql:/configure-runtime-role.sql:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
