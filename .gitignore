@@ -32,4 +32,5 @@ npm-debug.log*
 
 # Local development tools
 .claude/
+.superpowers/
 opencode.json
