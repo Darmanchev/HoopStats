@@ -6,7 +6,12 @@ class Team(Base):
     __tablename__ = "teams"
 
     abbr: Mapped[str] = mapped_column(String(5), primary_key=True)
-    nba_id: Mapped[int] = mapped_column(Integer, nullable=True)  # ← новое
+    nba_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    balldontlie_id: Mapped[int | None] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=True,
+    )
     name: Mapped[str] = mapped_column(String(50))
     city: Mapped[str] = mapped_column(String(50))
     record: Mapped[str] = mapped_column(String(10))

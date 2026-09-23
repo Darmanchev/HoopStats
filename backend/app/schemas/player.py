@@ -4,7 +4,8 @@ from .base import CamelModel
 
 class PlayerSchema(CamelModel):
     id: int
-    nba_id: int
+    nba_id: int | None
+    balldontlie_id: int | None = None
     name: str
     team_abbr: str
     position: str
@@ -36,7 +37,8 @@ class PlayerSchema(CamelModel):
 
 class PlayerDetailSchema(CamelModel):
     id: int
-    nba_id: int
+    nba_id: int | None
+    balldontlie_id: int | None = None
     name: str
     team_abbr: str
     position: str
