@@ -153,6 +153,23 @@ def test_nonempty_games_response_with_no_valid_game_is_rejected() -> None:
 
 
 @pytest.mark.parametrize(
+    ("normalizer", "args", "error"),
+    [
+        (normalize_teams, (), "valid teams"),
+        (normalize_players, ({"BOS"},), "valid players"),
+        (normalize_games, (), "valid games"),
+    ],
+)
+def test_non_object_records_are_rejected_as_malformed_provider_data(
+    normalizer,
+    args: tuple[object, ...],
+    error: str,
+) -> None:
+    with pytest.raises(ValueError, match=error):
+        normalizer([None], *args)
+
+
+@pytest.mark.parametrize(
     ("score_field", "invalid_score"),
     [
         ("visitor_team_score", None),

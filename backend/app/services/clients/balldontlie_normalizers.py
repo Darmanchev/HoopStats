@@ -37,6 +37,8 @@ def normalize_teams(raw_teams: list[dict[str, Any]]) -> list[TeamProfileData]:
     """Return valid NBA team profiles from a provider list response."""
     teams: list[TeamProfileData] = []
     for raw in raw_teams:
+        if not isinstance(raw, dict):
+            continue
         provider_id = _positive_int(raw.get("id"))
         abbr = _abbr(raw.get("abbreviation"))
         city = _text(raw.get("city"), maximum=50)
@@ -70,6 +72,8 @@ def normalize_players(
     players: list[PlayerProfileData] = []
     structurally_valid = 0
     for raw in raw_players:
+        if not isinstance(raw, dict):
+            continue
         provider_id = _positive_int(raw.get("id"))
         first_name = _text(raw.get("first_name"), maximum=50)
         last_name = _text(raw.get("last_name"), maximum=50)
@@ -134,6 +138,8 @@ def normalize_games(raw_games: list[dict[str, Any]]) -> list[GameData]:
     """Return games whose lifecycle and required fields are safe to store."""
     games: list[GameData] = []
     for raw in raw_games:
+        if not isinstance(raw, dict):
+            continue
         provider_id = _positive_int(raw.get("id"))
         start_year = _positive_int(raw.get("season"))
         game_date = _valid_date(raw.get("date"))

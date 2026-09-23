@@ -44,6 +44,7 @@ async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
     return PlayerDetailSchema(
         id=player.id,
         nba_id=player.nba_id,
+        balldontlie_id=player.balldontlie_id,
         name=player.name,
         team_abbr=player.team_abbr,
         position=player.position,
