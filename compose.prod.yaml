@@ -10,6 +10,10 @@ services:
   hoopstats-db:
     container_name: hoopstats-db
     image: postgres:17
+    networks:
+      default:
+        aliases:
+          - db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
