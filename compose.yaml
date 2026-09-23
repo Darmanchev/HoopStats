@@ -2,6 +2,7 @@ name: hoopstats
 
 services:
   db:
+    container_name: db-hoopstats
     image: postgres:17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -22,6 +23,7 @@ services:
       retries: 15
 
   redis:
+    container_name: redis-hoopstats
     image: redis:7.4-alpine
     command:
       - redis-server
@@ -40,6 +42,7 @@ services:
       retries: 10
 
   backend:
+    container_name: backend-hoopstats
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -73,6 +76,7 @@ services:
       retries: 10
 
   frontend:
+    container_name: frontend-hoopstats
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -90,6 +94,7 @@ services:
         condition: service_healthy
 
   scheduler:
+    container_name: scheduler-hoopstats
     build:
       context: .
       dockerfile: backend/Dockerfile
