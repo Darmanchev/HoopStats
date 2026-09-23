@@ -104,7 +104,7 @@ def configure_scheduler(
 
     target.add_job(
         sync_schedule_job,
-        trigger=IntervalTrigger(hours=6),
+        trigger=IntervalTrigger(days=1),
         id="schedule-and-injuries",
         next_run_time=first_run + timedelta(minutes=2),
         max_instances=1,
@@ -115,9 +115,9 @@ def configure_scheduler(
 
     target.add_job(
         sync_statistics_job,
-        trigger=IntervalTrigger(hours=12),
+        trigger=IntervalTrigger(days=1),
         id="statistics",
-        next_run_time=first_run + timedelta(minutes=5),
+        next_run_time=first_run + timedelta(minutes=6),
         max_instances=1,
         coalesce=True,
         misfire_grace_time=3600,

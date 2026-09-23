@@ -9,7 +9,7 @@ HoopStats is a full-stack NBA statistics dashboard with match predictions. I sta
 - calculates Elo ratings from historical games;
 - predicts upcoming matches with logistic regression;
 - explains a prediction using Elo, recent form, record and net rating;
-- refreshes part of the data every 12 hours.
+- refreshes live data every 15 minutes and the remaining data daily.
 
 ## Why these technologies
 
@@ -77,11 +77,11 @@ The scheduler separates synchronization by cost:
 | Data | Interval |
 | --- | --- |
 | Live games | 15 minutes |
-| Schedule and injuries | 6 hours |
-| Teams, players, team statistics, current-season history, and predictions | 12 hours |
+| Schedule and injuries | 24 hours |
+| Teams, players, team statistics, current-season history, and predictions | 24 hours |
 
 After startup, live games sync immediately, schedule and injuries sync after
-two minutes, and the larger statistics sync starts after five minutes. Jobs are
+two minutes, and the larger statistics sync starts after six minutes. Jobs are
 staggered and never run concurrently, which reduces load on the external APIs.
 
 ## Production deployment with Coolify

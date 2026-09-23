@@ -180,7 +180,7 @@ services:
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
-      LIVE_SYNC_MINUTES: ${LIVE_SYNC_MINUTES:-5}
+      LIVE_SYNC_MINUTES: ${LIVE_SYNC_MINUTES:-15}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis,backend,frontend}
