@@ -1,17 +1,13 @@
-from unittest.mock import AsyncMock
-from contextlib import asynccontextmanager
-
 import pytest
 from sqlalchemy.dialects import postgresql
 
 from app.models.game import Game
-from app.services import sync as sync_module
 from app.services.repositories import games as games_repo
 from app.services.repositories import player_game_stats as player_stats_repo
 
 
 LIVE_GAME = {
-    "game_id": "0022500002",
+    "game_id": "bdl:15907925",
     "away_abbr": "BOS",
     "home_abbr": "LAL",
     "date": "2026-09-21",
@@ -22,7 +18,9 @@ LIVE_GAME = {
     "clock": "PT04M12.00S",
     "away_score": 78,
     "home_score": 74,
-    "venue": "Crypto.com Arena",
+    "venue": "",
+    "season": "2025-26",
+    "season_type": "regular",
 }
 
 PLAYER = {
@@ -37,11 +35,6 @@ PLAYER = {
     "blocks": 1,
     "minutes": 32.5,
 }
-
-
-@asynccontextmanager
-async def nested_transaction():
-    yield
 
 
 class ScalarResult:
@@ -86,9 +79,10 @@ async def test_live_game_updates_scores_before_final() -> None:
         score2=None,
     )
 
-    affected = await games_repo.upsert_live_games(
+    affected = await games_repo.upsert_games(
         ExistingGameSession(game),  # type: ignore[arg-type]
         [LIVE_GAME],  # type: ignore[list-item]
+        today="2026-09-21",
     )
 
     assert affected == [LIVE_GAME["game_id"]]
@@ -116,18 +110,19 @@ async def test_incomplete_live_score_does_not_erase_stored_scores() -> None:
     )
     incomplete = {**LIVE_GAME, "away_score": None}
 
-    await games_repo.upsert_live_games(
+    await games_repo.upsert_games(
         ExistingGameSession(game),  # type: ignore[arg-type]
         [incomplete],  # type: ignore[list-item]
+        today="2026-09-21",
     )
 
     assert (game.score1, game.score2) == (78, 74)
 
 
 @pytest.mark.asyncio
-async def test_historical_sync_reconciles_partial_live_score_to_final() -> None:
+async def test_final_game_reconciles_partial_live_score() -> None:
     game = Game(
-        id="0022500002",
+        id=LIVE_GAME["game_id"],
         team1="BOS",
         team2="LAL",
         date="2026-09-21",
@@ -138,25 +133,60 @@ async def test_historical_sync_reconciles_partial_live_score_to_final() -> None:
         score2=65,
     )
 
-    class Session(ExistingGameSession):
-        commit = AsyncMock()
+    final = {
+        **LIVE_GAME,
+        "status": "final",
+        "status_text": "Final",
+        "period": 4,
+        "clock": None,
+        "away_score": 110,
+        "home_score": 104,
+        "season": "2025-26",
+        "season_type": "playoffs",
+    }
 
-    session = Session(game)
-    headers = ["GAME_ID", "TEAM_ABBREVIATION", "GAME_DATE", "PTS"]
-    rows = [
-        [game.id, "LAL", game.date, 104],
-        [game.id, "BOS", game.date, 110],
-    ]
-
-    await games_repo.upsert_historical_games(
-        session,  # type: ignore[arg-type]
-        headers,
-        rows,
-        "2026-27",
-        "regular",
+    await games_repo.upsert_games(
+        ExistingGameSession(game),  # type: ignore[arg-type]
+        [final],  # type: ignore[list-item]
     )
 
     assert game.status == "final"
+    assert (game.score1, game.score2) == (110, 104)
+    assert game.season == "2025-26"
+    assert game.season_type == "playoffs"
+
+
+@pytest.mark.asyncio
+async def test_scheduled_update_preserves_stored_scores_and_sets_today() -> None:
+    game = Game(
+        id=LIVE_GAME["game_id"],
+        team1="BOS",
+        team2="LAL",
+        date="2026-09-20",
+        time="Final",
+        venue="",
+        is_today=False,
+        status="final",
+        score1=110,
+        score2=104,
+    )
+    scheduled = {
+        **LIVE_GAME,
+        "status": "scheduled",
+        "status_text": "7:30 PM ET",
+        "period": None,
+        "clock": None,
+        "away_score": None,
+        "home_score": None,
+    }
+
+    await games_repo.upsert_games(
+        ExistingGameSession(game),  # type: ignore[arg-type]
+        [scheduled],  # type: ignore[list-item]
+        today="2026-09-21",
+    )
+
+    assert game.is_today is True
     assert (game.score1, game.score2) == (110, 104)
 
 
@@ -190,147 +220,3 @@ async def test_player_stats_upsert_updates_unique_game_player_row() -> None:
     sql = str(session.statements[0].compile(dialect=postgresql.dialect()))
     assert "ON CONFLICT (game_id, nba_id) DO UPDATE" in sql
     assert "points = excluded.points" in sql
-
-
-@pytest.mark.asyncio
-async def test_sync_games_continues_after_one_boxscore_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    second_game = {**LIVE_GAME, "game_id": "0022500003"}
-    monkeypatch.setattr(
-        sync_module.nba_client,
-        "fetch_live_scoreboard",
-        lambda: [LIVE_GAME, second_game],
-    )
-
-    def fetch_boxscore(game_id: str) -> list[dict]:
-        if game_id == LIVE_GAME["game_id"]:
-            raise RuntimeError("upstream unavailable")
-        return [{**PLAYER, "game_id": game_id}]
-
-    monkeypatch.setattr(
-        sync_module.nba_client,
-        "fetch_live_boxscore",
-        fetch_boxscore,
-        raising=False,
-    )
-    upsert_games = AsyncMock(
-        return_value=[LIVE_GAME["game_id"], second_game["game_id"]]
-    )
-    upsert_players = AsyncMock(return_value=1)
-    invalidate = AsyncMock()
-    reset_today = AsyncMock()
-    monkeypatch.setattr(sync_module.games_repo, "upsert_live_games", upsert_games)
-    monkeypatch.setattr(sync_module.games_repo, "reset_today_flag", reset_today)
-    monkeypatch.setattr(
-        sync_module,
-        "player_stats_repo",
-        type("PlayerStatsRepo", (), {"upsert_player_game_stats": upsert_players}),
-        raising=False,
-    )
-    monkeypatch.setattr(
-        sync_module,
-        "invalidate_live_caches",
-        invalidate,
-        raising=False,
-    )
-
-    class Session:
-        commit = AsyncMock()
-        flush = AsyncMock()
-
-        def begin_nested(self):
-            return nested_transaction()
-
-    db = Session()
-    await sync_module.sync_games(db)  # type: ignore[arg-type]
-
-    assert upsert_players.await_count == 1
-    assert upsert_players.await_args.args[1] == second_game["game_id"]
-    db.commit.assert_awaited_once_with()
-    invalidate.assert_awaited_once_with(
-        [LIVE_GAME["game_id"], second_game["game_id"]]
-    )
-
-
-@pytest.mark.asyncio
-async def test_sync_games_isolates_database_boxscore_failures(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    second_game = {**LIVE_GAME, "game_id": "0022500003"}
-    monkeypatch.setattr(
-        sync_module.nba_client,
-        "fetch_live_scoreboard",
-        lambda: [LIVE_GAME, second_game],
-    )
-    monkeypatch.setattr(
-        sync_module.nba_client,
-        "fetch_live_boxscore",
-        lambda game_id: [{**PLAYER, "game_id": game_id}],
-    )
-    monkeypatch.setattr(
-        sync_module.games_repo,
-        "reset_today_flag",
-        AsyncMock(),
-    )
-    monkeypatch.setattr(
-        sync_module.games_repo,
-        "upsert_live_games",
-        AsyncMock(return_value=[LIVE_GAME["game_id"], second_game["game_id"]]),
-    )
-    upsert_players = AsyncMock(side_effect=[RuntimeError("constraint"), 1])
-    monkeypatch.setattr(
-        sync_module.player_stats_repo,
-        "upsert_player_game_stats",
-        upsert_players,
-    )
-    monkeypatch.setattr(sync_module, "invalidate_live_caches", AsyncMock())
-    monkeypatch.setattr(sync_module, "invalidate_elo_cache", AsyncMock())
-
-    class Session:
-        def __init__(self) -> None:
-            self.flush = AsyncMock()
-            self.commit = AsyncMock()
-            self.savepoints = 0
-
-        def begin_nested(self):
-            self.savepoints += 1
-            return nested_transaction()
-
-    db = Session()
-    await sync_module.sync_games(db)  # type: ignore[arg-type]
-
-    db.flush.assert_awaited_once_with()
-    assert db.savepoints == 2
-    assert upsert_players.await_count == 2
-    db.commit.assert_awaited_once_with()
-
-
-@pytest.mark.asyncio
-async def test_successful_empty_scoreboard_clears_stale_today_flags(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        sync_module.nba_client,
-        "fetch_live_scoreboard",
-        lambda: [],
-    )
-    reset_today = AsyncMock()
-    invalidate = AsyncMock()
-    monkeypatch.setattr(sync_module.games_repo, "reset_today_flag", reset_today)
-    monkeypatch.setattr(
-        sync_module,
-        "invalidate_live_caches",
-        invalidate,
-        raising=False,
-    )
-
-    class Session:
-        commit = AsyncMock()
-
-    db = Session()
-    await sync_module.sync_games(db)  # type: ignore[arg-type]
-
-    reset_today.assert_awaited_once_with(db)
-    db.commit.assert_awaited_once_with()
-    invalidate.assert_awaited_once_with([])
