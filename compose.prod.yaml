@@ -59,7 +59,7 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: ${MIGRATION_DATABASE_URL:-${DATABASE_URL:?DATABASE_URL is required}}
-      NBA_API_KEY: ${NBA_API_KEY:-}
+      BALLDONTLIE_API_KEY: ${BALLDONTLIE_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
     command: alembic upgrade head
@@ -120,7 +120,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-hoopstats}
-      NBA_API_KEY: ${NBA_API_KEY:-}
+      BALLDONTLIE_API_KEY: ${BALLDONTLIE_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
       HTTP_PROXY: ${HTTP_PROXY:-}
@@ -171,7 +171,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-hoopstats}
-      NBA_API_KEY: ${NBA_API_KEY:-}
+      BALLDONTLIE_API_KEY: ${BALLDONTLIE_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://redis:6379/0
       LIVE_SYNC_MINUTES: ${LIVE_SYNC_MINUTES:-5}

@@ -4,7 +4,7 @@ HoopStats is a full-stack NBA statistics dashboard with match predictions. I sta
 
 ## What the project does
 
-- imports teams, games, schedules, player statistics and injuries;
+- imports teams, games, schedules, basic player profiles and injuries;
 - shows dashboards, standings, schedules, team form and player leaders;
 - calculates Elo ratings from historical games;
 - predicts upcoming matches with logistic regression;
@@ -35,19 +35,28 @@ Requirements: Docker with Compose.
 git clone https://github.com/Darmanchev/HoopStats.git
 cd HoopStats
 cp .env.example .env
+# Add your BALLDONTLIE_API_KEY to .env before importing NBA data.
 make up
 ```
 
 The local `.env` file is intentionally ignored by Git. The database migrations
 run automatically when the backend starts.
 
-To load NBA/ESPN data after the containers start:
+Create a free API key at [app.balldontlie.io](https://app.balldontlie.io), then
+set `BALLDONTLIE_API_KEY` in `.env`. The free tier supplies the teams, basic
+player profiles (name, team and position), and games used by HoopStats. It is
+limited to five requests per minute, so the backend spaces provider requests
+at least 12 seconds apart and large first-time imports can take several
+minutes.
+
+To load BALLDONTLIE/ESPN data after the containers start:
 
 ```bash
 make seed
 ```
 
-The initial sync calls external NBA/ESPN services and may take several minutes. The application is available at:
+The initial sync calls external BALLDONTLIE and ESPN services. The application
+is available at:
 
 - frontend: [http://localhost:5173](http://localhost:5173)
 - API: [http://localhost:8000](http://localhost:8000)
@@ -76,7 +85,7 @@ The scheduler separates synchronization by cost:
 
 | Data | Interval |
 | --- | --- |
-| Live games | 15 minutes |
+| Live games | 5 minutes |
 | Schedule and injuries | 6 hours |
 | Teams, players, team statistics, current-season history, and predictions | 12 hours |
 
@@ -102,9 +111,9 @@ environment file in the repository. Required variables:
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`;
 - `DATABASE_URL`, using the PostgreSQL owner account for migrations;
 - `APP_DB_USER` and `APP_DB_PASSWORD`, using a separate runtime account;
-- `SECRET_KEY` and `APP_HOST`.
+- `SECRET_KEY`, `APP_HOST`, and `BALLDONTLIE_API_KEY`.
 
-`NBA_API_KEY`, `BACKEND_WORKERS`, `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
+`BACKEND_WORKERS`, `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 are optional. For a manual deployment outside Coolify, provide an environment
 file stored outside the repository:
 
@@ -146,7 +155,7 @@ the current season.
 ```text
 frontend/                          React dashboard and production image
 backend/app/routers/               API endpoints
-backend/app/services/clients/      NBA and ESPN integrations
+backend/app/services/clients/      BALLDONTLIE, NBA and ESPN integrations
 backend/app/services/repositories/ database operations
 backend/app/services/sync.py       data synchronization
 backend/app/ml/                    features, training and prediction
@@ -162,3 +171,8 @@ The scheduler refreshes teams, games, schedules, team statistics, players,
 injuries, and predictions. Automated backend tests cover the main API contract
 and scheduler behavior. The next priorities are broader integration coverage,
 frontend tests, and model experiment tracking.
+
+The public API routes are unchanged by the provider migration. BALLDONTLIE
+does not expose every paid or legacy NBA field on its free tier. Unsupported
+fields remain null or zero, existing values are preserved during upserts, and
+team statistics and injuries continue through their separate integrations.
