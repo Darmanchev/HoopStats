@@ -87,7 +87,7 @@ staggered and never run concurrently, which reduces load on the external APIs.
 ## Production deployment with Coolify
 
 Choose the Docker Compose build pack in Coolify and set **Docker Compose
-Location** to `/compose.prod.yaml`. Set a domain for the `frontend` service on
+Location** to `/compose.prod.yaml`. Set a domain for the `hoopstats-frontend` service on
 container port `8080`. Set `APP_HOST` to that domain's hostname without a
 scheme, port, or path (for example, `stats.example.com`).
 Enable **Force HTTPS** for that domain. Coolify terminates TLS and redirects
@@ -100,7 +100,8 @@ Configure production values in Coolify instead of keeping a production
 environment file in the repository. Required variables:
 
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`;
-- `DATABASE_URL`, using the PostgreSQL owner account for migrations;
+- `DATABASE_URL`, using the PostgreSQL owner account for migrations. Use
+  `hoopstats-db` as the database host inside the Compose network;
 - `APP_DB_USER` and `APP_DB_PASSWORD`, using a separate runtime account;
 - `SECRET_KEY` and `APP_HOST`.
 

@@ -10,13 +10,13 @@ class Settings(BaseSettings):
     database_url: str | None = None
     db_user: str | None = None
     db_password: str | None = None
-    db_host: str = "db"
+    db_host: str = "hoopstats-db"
     db_port: int = 5432
     db_name: str = "hoopstats"
 
     nba_api_key: str = ""
     secret_key: str
-    redis_url: str = "redis://redis:6379/0"
+    redis_url: str = "redis://hoopstats-redis:6379/0"
     allowed_hosts: str = "localhost,127.0.0.1,testserver"
     api_docs_enabled: bool = False
     elo_cache_ttl_seconds: int = 86_400

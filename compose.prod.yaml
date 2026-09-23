@@ -7,8 +7,8 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  db:
-    container_name: db-hoopstats
+  hoopstats-db:
+    container_name: hoopstats-db
     image: postgres:17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -31,8 +31,8 @@ services:
     pids_limit: 256
     logging: *default-logging
 
-  redis:
-    container_name: redis-hoopstats
+  hoopstats-redis:
+    container_name: hoopstats-redis
     image: redis:7.4-alpine
     command:
       - redis-server
@@ -55,8 +55,8 @@ services:
     pids_limit: 128
     logging: *default-logging
 
-  migrate:
-    container_name: migrate-hoopstats
+  hoopstats-migrate:
+    container_name: hoopstats-migrate
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -64,10 +64,10 @@ services:
       DATABASE_URL: ${MIGRATION_DATABASE_URL:-${DATABASE_URL:?DATABASE_URL is required}}
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://hoopstats-redis:6379/0
     command: alembic upgrade head
     depends_on:
-      db:
+      hoopstats-db:
         condition: service_healthy
     restart: "no"
     cpus: "0.50"
@@ -75,13 +75,13 @@ services:
     pids_limit: 128
     logging: *default-logging
 
-  db_roles:
-    container_name: db_roles-hoopstats
+  hoopstats-db-roles:
+    container_name: hoopstats-db-roles
     build:
       context: ./docker/postgres
       dockerfile: Dockerfile
     environment:
-      PGHOST: db
+      PGHOST: hoopstats-db
       PGUSER: ${POSTGRES_USER:?POSTGRES_USER is required}
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       PGDATABASE: ${POSTGRES_DB:-hoopstats}
@@ -98,7 +98,7 @@ services:
         --set=owner_user="$$PGUSER"
         --file=/configure-runtime-role.sql
     depends_on:
-      migrate:
+      hoopstats-migrate:
         condition: service_completed_successfully
     restart: "no"
     cpus: "0.25"
@@ -106,8 +106,8 @@ services:
     pids_limit: 64
     logging: *default-logging
 
-  backend:
-    container_name: backend-hoopstats
+  hoopstats-backend:
+    container_name: hoopstats-backend
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -122,21 +122,21 @@ services:
       DATABASE_URL: ""
       DB_USER: ${APP_DB_USER:-hoopstats_runtime}
       DB_PASSWORD: ${APP_DB_PASSWORD:-${SECRET_KEY:?SECRET_KEY is required}}
-      DB_HOST: db
+      DB_HOST: hoopstats-db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-hoopstats}
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://hoopstats-redis:6379/0
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis,backend,frontend}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,hoopstats-db,hoopstats-redis,hoopstats-backend,hoopstats-frontend}
       ALLOWED_HOSTS: ${APP_HOST:?APP_HOST hostname is required},localhost,127.0.0.1
       API_DOCS_ENABLED: "false"
     depends_on:
-      db_roles:
+      hoopstats-db-roles:
         condition: service_completed_successfully
-      redis:
+      hoopstats-redis:
         condition: service_healthy
     expose:
       - "8000"
@@ -164,8 +164,8 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  scheduler:
-    container_name: scheduler-hoopstats
+  hoopstats-scheduler:
+    container_name: hoopstats-scheduler
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -174,20 +174,20 @@ services:
       DATABASE_URL: ""
       DB_USER: ${APP_DB_USER:-hoopstats_runtime}
       DB_PASSWORD: ${APP_DB_PASSWORD:-${SECRET_KEY:?SECRET_KEY is required}}
-      DB_HOST: db
+      DB_HOST: hoopstats-db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-hoopstats}
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://hoopstats-redis:6379/0
       LIVE_SYNC_MINUTES: ${LIVE_SYNC_MINUTES:-15}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis,backend,frontend}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,hoopstats-db,hoopstats-redis,hoopstats-backend,hoopstats-frontend}
     depends_on:
-      db_roles:
+      hoopstats-db-roles:
         condition: service_completed_successfully
-      backend:
+      hoopstats-backend:
         condition: service_healthy
     restart: unless-stopped
     cpus: "1.0"
@@ -202,8 +202,8 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  frontend:
-    container_name: frontend-hoopstats
+  hoopstats-frontend:
+    container_name: hoopstats-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -215,7 +215,7 @@ services:
     expose:
       - "8080"
     depends_on:
-      backend:
+      hoopstats-backend:
         condition: service_healthy
     restart: unless-stopped
     cpus: "0.50"

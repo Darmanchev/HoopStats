@@ -1,8 +1,8 @@
 name: hoopstats
 
 services:
-  db:
-    container_name: db-hoopstats
+  hoopstats-db:
+    container_name: hoopstats-db
     image: postgres:17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -22,8 +22,8 @@ services:
       timeout: 5s
       retries: 15
 
-  redis:
-    container_name: redis-hoopstats
+  hoopstats-redis:
+    container_name: hoopstats-redis
     image: redis:7.4-alpine
     command:
       - redis-server
@@ -41,8 +41,8 @@ services:
       timeout: 3s
       retries: 10
 
-  backend:
-    container_name: backend-hoopstats
+  hoopstats-backend:
+    container_name: hoopstats-backend
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -50,13 +50,13 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://hoopstats-redis:6379/0
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,testserver}
       API_DOCS_ENABLED: ${API_DOCS_ENABLED:-true}
     depends_on:
-      db:
+      hoopstats-db:
         condition: service_healthy
-      redis:
+      hoopstats-redis:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
@@ -75,8 +75,8 @@ services:
       timeout: 5s
       retries: 10
 
-  frontend:
-    container_name: frontend-hoopstats
+  hoopstats-frontend:
+    container_name: hoopstats-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -90,11 +90,11 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      backend:
+      hoopstats-backend:
         condition: service_healthy
 
-  scheduler:
-    container_name: scheduler-hoopstats
+  hoopstats-scheduler:
+    container_name: hoopstats-scheduler
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -103,10 +103,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       NBA_API_KEY: ${NBA_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://hoopstats-redis:6379/0
       LIVE_SYNC_MINUTES: ${LIVE_SYNC_MINUTES:-15}
     depends_on:
-      backend:
+      hoopstats-backend:
         condition: service_healthy
     restart: unless-stopped
 
