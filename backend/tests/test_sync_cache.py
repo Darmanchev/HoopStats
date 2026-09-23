@@ -25,6 +25,26 @@ class EmptyTeamSession:
     async def commit(self) -> None:
         self.committed = True
 
+    async def rollback(self) -> None:
+        return None
+
+
+class TeamClient:
+    async def __aenter__(self) -> "TeamClient":
+        return self
+
+    async def __aexit__(self, *_args: object) -> None:
+        return None
+
+    async def get_teams(self) -> list[dict]:
+        return [{
+            "id": 2,
+            "abbreviation": "BOS",
+            "city": "Boston",
+            "name": "Celtics",
+            "conference": "East",
+        }]
+
 
 @pytest.mark.asyncio
 async def test_team_stats_sync_invalidates_combined_teams_cache(
@@ -54,14 +74,9 @@ async def test_teams_sync_invalidates_combined_teams_cache(
     monkeypatch.setattr(sync_module, "invalidate_teams_cache", invalidate)
     monkeypatch.setattr(sync_module.teams_repo, "upsert_teams", upsert_teams)
     monkeypatch.setattr(
-        sync_module.nba_client,
-        "fetch_teams",
-        lambda: [{"id": 1, "abbreviation": "BOS"}],
-    )
-    monkeypatch.setattr(
-        sync_module.nba_client,
-        "fetch_standings",
-        lambda _season: {1: "4-1"},
+        sync_module,
+        "create_balldontlie_client",
+        TeamClient,
     )
 
     await sync_module.sync_teams(EmptyTeamSession())  # type: ignore[arg-type]

@@ -6,6 +6,8 @@
 
 import asyncio
 import logging
+import re
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,12 +18,20 @@ from ..cache import (
     invalidate_teams_cache,
 )
 from ..models.team import Team
+from .clients.balldontlie import (
+    BallDontLieError,
+    create_client as create_balldontlie_client,
+)
+from .clients.balldontlie_normalizers import (
+    normalize_games,
+    normalize_players,
+    normalize_teams,
+)
 from .clients import espn as espn_client
 from .clients import nba as nba_client
 from .repositories import games as games_repo
 from .repositories import injuries as injuries_repo
 from .repositories import players as players_repo
-from .repositories import player_game_stats as player_stats_repo
 from .repositories import team_stats as team_stats_repo
 from .repositories import teams as teams_repo
 from .utils import CURRENT_SEASON, parse_log_date
@@ -30,124 +40,128 @@ logger = logging.getLogger(__name__)
 
 
 async def sync_teams(db: AsyncSession) -> None:
-    """Загружает все команды из NBA API и обновляет БД."""
-    raw_teams = await asyncio.to_thread(nba_client.fetch_teams)
-    logger.info("NBA API вернул %d команд", len(raw_teams))
-
-    records = await asyncio.to_thread(
-        nba_client.fetch_standings,
-        CURRENT_SEASON,
-    )
-
-    count_new = await teams_repo.upsert_teams(db, raw_teams, records)
-    await invalidate_teams_cache()
-    logger.info("Синхронизировано %d команд (%d новых)", len(raw_teams), count_new)
-
-
-async def sync_games(db: AsyncSession) -> None:
-    """Загружает живые игры сегодня из NBA scoreboard."""
+    """Load BALLDONTLIE team profiles without paid standings data."""
     try:
-        games_data = await asyncio.to_thread(nba_client.fetch_live_scoreboard)
-    except Exception as e:
-        logger.error("Ошибка при загрузке игр: %s: %s", type(e).__name__, e)
+        async with create_balldontlie_client() as client:
+            raw_teams = await client.get_teams()
+        profiles = normalize_teams(raw_teams)
+        count_new = await teams_repo.upsert_teams(db, profiles)
+        await db.commit()
+    except (BallDontLieError, ValueError) as exc:
+        await db.rollback()
+        logger.error("BALLDONTLIE team sync failed: %s", exc)
+        return
+
+    await invalidate_teams_cache()
+    logger.info("Synced %d teams (%d new)", len(profiles), count_new)
+
+
+async def sync_games(
+    db: AsyncSession,
+    *,
+    today: date | None = None,
+) -> None:
+    """Load and persist the validated BALLDONTLIE games for one date."""
+    sync_date = today or datetime.now(timezone.utc).date()
+    date_text = sync_date.isoformat()
+    try:
+        async with create_balldontlie_client() as client:
+            raw_games = await client.get_games(dates=[date_text])
+        games_data = normalize_games(raw_games)
+    except (BallDontLieError, ValueError) as exc:
+        await db.rollback()
+        logger.error("BALLDONTLIE game sync failed: %s", exc)
         return
 
     await games_repo.reset_today_flag(db)
     if not games_data:
         await db.commit()
         await invalidate_live_caches([])
-        logger.info("Сегодня игр нет")
+        logger.info("No games returned for %s", date_text)
         return
 
-    affected_ids = await games_repo.upsert_live_games(db, games_data)
-    # Persist scoreboard changes before opening per-game savepoints. SQLAlchemy
-    # otherwise flushes all pending changes when a nested transaction begins.
-    await db.flush()
-    for game in games_data:
-        if game["status"] not in {"live", "final"}:
-            continue
-        try:
-            players = await asyncio.to_thread(
-                nba_client.fetch_live_boxscore,
-                game["game_id"],
-            )
-            async with db.begin_nested():
-                await player_stats_repo.upsert_player_game_stats(
-                    db,
-                    game["game_id"],
-                    players,
-                )
-        except Exception:
-            logger.exception(
-                "Box score sync failed for game %s",
-                game["game_id"],
-            )
-
+    affected_ids = await games_repo.upsert_games(
+        db,
+        games_data,
+        today=date_text,
+    )
     await db.commit()
     await invalidate_live_caches(affected_ids)
     await invalidate_elo_cache()
-    logger.info("Синхронизировано %d игр", len(affected_ids))
+    logger.info("Synced %d games for %s", len(affected_ids), date_text)
 
 
-async def sync_historical_games(db: AsyncSession, season: str = CURRENT_SEASON) -> None:
-    """Загружает все игры сезона (regular + playoffs) из LeagueGameFinder."""
-    logger.info("Загрузка игр сезона %s...", season)
+def season_start_year(season: str) -> int:
+    """Convert an application season label into BALLDONTLIE's start year."""
+    match = re.fullmatch(r"(\d{4})-(\d{2})", season)
+    if match is None:
+        raise ValueError(f"Invalid NBA season: {season}")
+    start = int(match.group(1))
+    if int(match.group(2)) != (start + 1) % 100:
+        raise ValueError(f"Invalid NBA season: {season}")
+    return start
 
-    # Регулярный сезон
+
+async def sync_historical_games(
+    db: AsyncSession,
+    season: str = CURRENT_SEASON,
+) -> None:
+    """Load final regular-season and playoff games from BALLDONTLIE."""
+    start_year = season_start_year(season)
     try:
-        await asyncio.sleep(1.0)
-        headers, rows = await asyncio.to_thread(
-            nba_client.fetch_league_games,
-            season,
-            "Regular Season",
-        )
-        logger.info("NBA API вернул %d записей (регулярный сезон)", len(rows))
-    except Exception as e:
-        logger.error("Ошибка при запросе регулярного сезона: %s: %s", type(e).__name__, e)
+        async with create_balldontlie_client() as client:
+            regular_raw = await client.get_games(
+                seasons=[start_year],
+                season_type="regular",
+            )
+            playoffs_raw = await client.get_games(
+                seasons=[start_year],
+                season_type="playoffs",
+            )
+        games_data = [
+            game
+            for game in normalize_games(regular_raw) + normalize_games(playoffs_raw)
+            if game["status"] == "final"
+        ]
+        affected_ids = await games_repo.upsert_games(db, games_data)
+        await db.commit()
+    except (BallDontLieError, ValueError) as exc:
+        await db.rollback()
+        logger.error("BALLDONTLIE historical sync failed: %s", exc)
         return
 
-    if not rows:
-        logger.warning("Нет данных для сезона %s", season)
-        return
-
-    count = await games_repo.upsert_historical_games(db, headers, rows, season, "regular")
     await invalidate_elo_cache()
-    logger.info("Загружено %d игр регулярного сезона", count)
+    logger.info("Synced %d final games for %s", len(affected_ids), season)
 
-    # Плей-офф
-    logger.info("Загрузка игр плей-офф сезона %s...", season)
+
+async def sync_schedule(
+    db: AsyncSession,
+    *,
+    start_date: date | None = None,
+) -> None:
+    """Load the next 30 days of BALLDONTLIE games."""
+    window_start = start_date or datetime.now(timezone.utc).date()
+    window_end = window_start + timedelta(days=30)
+    start_text = window_start.isoformat()
     try:
-        await asyncio.sleep(1.0)
-        headers, rows = await asyncio.to_thread(
-            nba_client.fetch_league_games,
-            season,
-            "Playoffs",
+        async with create_balldontlie_client() as client:
+            raw_games = await client.get_games(
+                start_date=start_text,
+                end_date=window_end.isoformat(),
+            )
+        games_data = normalize_games(raw_games)
+        affected_ids = await games_repo.upsert_games(
+            db,
+            games_data,
+            today=start_text,
         )
-        logger.info("NBA API вернул %d записей (плей-офф)", len(rows))
-    except Exception as e:
-        logger.info("Плей-офф ещё не начался или данные недоступны: %s", e)
+        await db.commit()
+    except (BallDontLieError, ValueError) as exc:
+        await db.rollback()
+        logger.error("BALLDONTLIE schedule sync failed: %s", exc)
         return
 
-    if not rows:
-        logger.info("Игр плей-офф не найдено")
-        return
-
-    count = await games_repo.upsert_historical_games(db, headers, rows, season, "playoffs")
-    await invalidate_elo_cache()
-    logger.info("Загружено %d игр плей-офф", count)
-
-
-async def sync_schedule(db: AsyncSession) -> None:
-    """Загружает будущие (ещё не сыгранные) игры из расписания NBA CDN."""
-    logger.info("Загрузка расписания NBA...")
-    try:
-        schedule_data = await nba_client.fetch_schedule()
-    except Exception as e:
-        logger.error("Ошибка при загрузке расписания: %s: %s", type(e).__name__, e)
-        return
-
-    count_new, count_updated = await games_repo.upsert_schedule_games(db, schedule_data)
-    logger.info("Расписание загружено: %d новых, %d обновлено", count_new, count_updated)
+    logger.info("Synced %d games in the 30-day schedule", len(affected_ids))
 
 
 async def sync_team_stats(db: AsyncSession) -> None:
@@ -213,26 +227,29 @@ async def sync_team_stats(db: AsyncSession) -> None:
 
 
 async def sync_players(db: AsyncSession, season: str = CURRENT_SEASON) -> None:
-    """Загружает игроков и их статистику из NBA API."""
-    logger.info("Загрузка статистики игроков сезона %s...", season)
-
+    """Load basic BALLDONTLIE profiles for teams present in the database."""
+    del season
     try:
-        await asyncio.sleep(1.0)
-        headers, rows = await asyncio.to_thread(
-            nba_client.fetch_player_stats,
-            season,
+        result = await db.execute(select(Team.abbr))
+        valid_team_abbrs = set(result.scalars().all())
+        async with create_balldontlie_client() as client:
+            raw_players = await client.get_players()
+        profiles = normalize_players(raw_players, valid_team_abbrs)
+        count_new, count_updated = await players_repo.upsert_players(
+            db,
+            profiles,
         )
-        logger.info("NBA API вернул %d записей игроков", len(rows))
-    except Exception as e:
-        logger.error("Ошибка при загрузке статистики игроков: %s: %s", type(e).__name__, e)
+        await db.commit()
+    except (BallDontLieError, ValueError) as exc:
+        await db.rollback()
+        logger.error("BALLDONTLIE player sync failed: %s", exc)
         return
 
-    if not headers or not rows:
-        logger.warning("Нет данных об игроках")
-        return
-
-    count_new, count_updated = await players_repo.upsert_players(db, headers, rows)
-    logger.info("Игроки синхронизированы: %d новых, %d обновлено", count_new, count_updated)
+    logger.info(
+        "Synced player profiles: %d new, %d updated",
+        count_new,
+        count_updated,
+    )
 
 
 async def sync_injuries(db: AsyncSession) -> None:
