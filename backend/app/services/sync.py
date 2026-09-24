@@ -161,6 +161,8 @@ async def sync_schedule(
         logger.error("BALLDONTLIE schedule sync failed: %s", exc)
         return
 
+    await invalidate_live_caches(affected_ids)
+    await invalidate_elo_cache()
     logger.info("Synced %d games in the 30-day schedule", len(affected_ids))
 
 

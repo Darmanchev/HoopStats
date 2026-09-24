@@ -294,12 +294,26 @@ async def test_sync_schedule_fetches_thirty_day_window(
     client = FakeClient(games=[RAW_GAME])
     db = FakeSession()
     upsert = AsyncMock(return_value=["bdl:15907925"])
+    events: list[object] = []
+
+    async def commit() -> None:
+        events.append("commit")
+
+    async def invalidate_live(game_ids: list[str]) -> None:
+        events.append(("invalidate_live", game_ids))
+
+    async def invalidate_elo() -> None:
+        events.append("invalidate_elo")
+
+    db.commit.side_effect = commit
     monkeypatch.setattr(
         sync_module,
         "create_balldontlie_client",
         lambda: client,
     )
     monkeypatch.setattr(sync_module.games_repo, "upsert_games", upsert)
+    monkeypatch.setattr(sync_module, "invalidate_live_caches", invalidate_live)
+    monkeypatch.setattr(sync_module, "invalidate_elo_cache", invalidate_elo)
 
     await sync_module.sync_schedule(
         db,  # type: ignore[arg-type]
@@ -313,6 +327,11 @@ async def test_sync_schedule_fetches_thirty_day_window(
     upsert.assert_awaited_once()
     assert upsert.await_args.kwargs == {"today": "2026-09-23"}
     db.commit.assert_awaited_once_with()
+    assert events == [
+        "commit",
+        ("invalidate_live", ["bdl:15907925"]),
+        "invalidate_elo",
+    ]
 
 
 @pytest.mark.asyncio
