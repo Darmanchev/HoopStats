@@ -5,6 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import httpx
+from curl_cffi.requests import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -119,12 +120,12 @@ async def fetch_scoreboard(
     if date_yyyymmdd:
         params["dates"] = date_yyyymmdd
 
-    timeout = httpx.Timeout(20.0, connect=10.0)
+    timeout = 20.0
 
-    async with httpx.AsyncClient(
+    async with AsyncSession(
         headers=HEADERS,
         timeout=timeout,
-        follow_redirects=True,
+        impersonate="chrome",
     ) as client:
         response = await client.get(
             ESPN_SCOREBOARD_URL,
@@ -146,12 +147,12 @@ async def fetch_scoreboard(
 
 async def fetch_injuries() -> list[dict]:
     """Загружает данные о травмах всех команд."""
-    timeout = httpx.Timeout(20.0, connect=10.0)
+    timeout = 20.0
 
-    async with httpx.AsyncClient(
+    async with AsyncSession(
         headers=HEADERS,
         timeout=timeout,
-        follow_redirects=True,
+        impersonate="chrome",
     ) as client:
         response = await client.get(ESPN_INJURIES_URL)
         response.raise_for_status()
