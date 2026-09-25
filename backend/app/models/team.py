@@ -12,6 +12,11 @@ class Team(Base):
         unique=True,
         nullable=True,
     )
+    api_nba_id: Mapped[int | None] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=True,
+    )
     name: Mapped[str] = mapped_column(String(50))
     city: Mapped[str] = mapped_column(String(50))
     record: Mapped[str] = mapped_column(String(10))

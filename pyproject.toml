@@ -29,6 +29,7 @@ package = false
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.21,<1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
 ]
