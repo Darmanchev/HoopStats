@@ -53,6 +53,11 @@ async def sync_player_season(
             roster_pages,
             stat_pages,
         )
+        if not profiles or not rows:
+            raise ValueError(
+                f"API-NBA returned no players for season {season}; "
+                "existing season data was not changed"
+            )
         result = await player_seasons_repo.upsert_player_season(
             db,
             season=season,

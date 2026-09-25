@@ -19,6 +19,28 @@ RAW_30_TEAMS = [
     }
     for team in NORMALIZED_30_TEAMS
 ]
+AGGREGATED_PROFILES = [{
+    "api_nba_id": 100,
+    "name": "Test 1",
+    "position": "G",
+    "jersey_number": None,
+}]
+AGGREGATED_ROWS = [{
+    "api_nba_id": 100,
+    "season": "2025-26",
+    "primary_team_abbr": "T01",
+    "games_played": 0,
+    "pts": 0.0,
+    "reb": 0.0,
+    "ast": 0.0,
+    "stl": 0.0,
+    "blk": 0.0,
+    "fg_pct": 0.0,
+    "fg3_pct": 0.0,
+    "ft_pct": 0.0,
+    "mins": 0.0,
+    "recent_games": 0,
+}]
 
 
 class FakeScalars:
@@ -76,7 +98,7 @@ async def test_sync_player_season_fetches_each_team_and_commits_once(
     client = FakeApiNbaClient(teams=RAW_30_TEAMS)
     db = FakeSession()
     upsert = AsyncMock(return_value=(450, 450))
-    aggregate = Mock(return_value=([], []))
+    aggregate = Mock(return_value=(AGGREGATED_PROFILES, AGGREGATED_ROWS))
     monkeypatch.setattr(player_seasons, "create_api_nba_client", lambda: client)
     monkeypatch.setattr(
         player_seasons,
@@ -159,4 +181,36 @@ async def test_incomplete_team_directory_rolls_back_before_roster_calls(
 
     client.get_players.assert_not_awaited()
     upsert.assert_not_awaited()
+    db.rollback.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_empty_aggregate_rolls_back_without_replacing_existing_season(
+    monkeypatch,
+) -> None:
+    client = FakeApiNbaClient(teams=RAW_30_TEAMS)
+    db = FakeSession()
+    upsert = AsyncMock()
+    monkeypatch.setattr(player_seasons, "create_api_nba_client", lambda: client)
+    monkeypatch.setattr(
+        player_seasons,
+        "normalize_api_nba_teams",
+        lambda raw, valid: NORMALIZED_30_TEAMS,
+    )
+    monkeypatch.setattr(
+        player_seasons,
+        "aggregate_player_season",
+        Mock(return_value=([], [])),
+    )
+    monkeypatch.setattr(
+        player_seasons.player_seasons_repo,
+        "upsert_player_season",
+        upsert,
+    )
+
+    with pytest.raises(ValueError, match="no players"):
+        await player_seasons.sync_player_season(db, "2025-26")
+
+    upsert.assert_not_awaited()
+    db.commit.assert_not_awaited()
     db.rollback.assert_awaited_once_with()

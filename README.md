@@ -187,7 +187,8 @@ injuries, and predictions. Automated backend tests cover the main API contract
 and scheduler behavior. The next priorities are broader integration coverage,
 frontend tests, and model experiment tracking.
 
-The public API routes are unchanged by the provider migration. BALLDONTLIE
-does not expose every paid or legacy NBA field on its free tier. Unsupported
-fields remain null or zero, existing values are preserved during upserts, and
-team statistics and injuries continue through their separate integrations.
+The existing player routes remain backward compatible, with an optional
+season query and a new player-season listing endpoint. API-NBA supplies player
+profiles and season statistics; BALLDONTLIE continues to supply teams and
+games. Provider IDs remain separate, unsupported fields stay nullable, and
+team statistics and injuries continue through their existing integrations.
