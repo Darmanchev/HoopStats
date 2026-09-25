@@ -15,6 +15,7 @@ from .sync import (
     sync_injuries,
 )
 from .predictions import sync_predictions
+from .player_seasons import sync_player_season
 
 __all__ = [
     "sync_teams",
@@ -25,4 +26,5 @@ __all__ = [
     "sync_players",
     "sync_injuries",
     "sync_predictions",
+    "sync_player_season",
 ]

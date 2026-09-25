@@ -35,7 +35,7 @@ Requirements: Docker with Compose.
 git clone https://github.com/Darmanchev/HoopStats.git
 cd HoopStats
 cp .env.example .env
-# Add your BALLDONTLIE_API_KEY to .env before importing NBA data.
+# Add your BALLDONTLIE_API_KEY and API_NBA_KEY before importing NBA data.
 make up
 ```
 
@@ -54,6 +54,20 @@ To load BALLDONTLIE/ESPN data after the containers start:
 ```bash
 make seed
 ```
+
+Player profiles and season statistics use the NBA-specific
+[API-NBA service from API-Sports](https://api-sports.io/sports/nba). Create a
+free API-Sports account and set `API_NBA_KEY` in `.env`. The free plan allows
+100 requests per day. A complete season import uses about 61 requests, so
+historical player seasons are imported manually and are not scheduled:
+
+```bash
+make seed-players SEASON=2025-26
+```
+
+The import fetches every NBA team before replacing that season in one database
+transaction. If the provider rejects or interrupts any request, the existing
+season data stays unchanged.
 
 The initial sync calls external BALLDONTLIE and ESPN services. The application
 is available at:
@@ -76,6 +90,7 @@ Useful shortcuts:
 make logs
 make migrate
 make seed
+make seed-players SEASON=2025-26
 make train
 make status
 make down
@@ -111,7 +126,7 @@ environment file in the repository. Required variables:
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`;
 - `DATABASE_URL`, using the PostgreSQL owner account for migrations;
 - `APP_DB_USER` and `APP_DB_PASSWORD`, using a separate runtime account;
-- `SECRET_KEY`, `APP_HOST`, and `BALLDONTLIE_API_KEY`.
+- `SECRET_KEY`, `APP_HOST`, `BALLDONTLIE_API_KEY`, and `API_NBA_KEY`.
 
 `BACKEND_WORKERS`, `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 are optional. For a manual deployment outside Coolify, provide an environment
