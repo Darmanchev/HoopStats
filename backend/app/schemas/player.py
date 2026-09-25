@@ -6,6 +6,8 @@ class PlayerSchema(CamelModel):
     id: int
     nba_id: int | None
     balldontlie_id: int | None = None
+    api_nba_id: int | None = None
+    season: str | None = None
     name: str
     team_abbr: str
     position: str
@@ -39,6 +41,8 @@ class PlayerDetailSchema(CamelModel):
     id: int
     nba_id: int | None
     balldontlie_id: int | None = None
+    api_nba_id: int | None = None
+    season: str | None = None
     name: str
     team_abbr: str
     position: str
