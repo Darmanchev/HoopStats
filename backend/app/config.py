@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     balldontlie_api_key: str = ""
     balldontlie_base_url: str = "https://api.balldontlie.io/v1"
     balldontlie_request_interval_seconds: float = Field(default=12.0, ge=12.0)
+    api_nba_key: str = ""
+    api_nba_base_url: str = "https://v2.nba.api-sports.io"
     secret_key: str
     redis_url: str = "redis://redis:6379/0"
     allowed_hosts: str = "localhost,127.0.0.1,testserver"

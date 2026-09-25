@@ -68,3 +68,32 @@ class GameData(TypedDict):
     venue: str
     season: str
     season_type: Literal["regular", "playoffs"]
+
+
+class ApiNbaTeamData(TypedDict):
+    api_nba_id: int
+    abbr: str
+
+
+class ApiNbaPlayerProfileData(TypedDict):
+    api_nba_id: int
+    name: str
+    position: str
+    jersey_number: str | None
+
+
+class PlayerSeasonData(TypedDict):
+    api_nba_id: int
+    season: str
+    primary_team_abbr: str
+    games_played: int
+    pts: float
+    reb: float
+    ast: float
+    stl: float
+    blk: float
+    fg_pct: float
+    fg3_pct: float
+    ft_pct: float
+    mins: float
+    recent_games: int
