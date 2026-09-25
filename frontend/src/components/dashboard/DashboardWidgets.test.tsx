@@ -70,6 +70,9 @@ const liveGame: LiveGame = {
 const topPlayer: Player = {
   id: 7,
   nbaId: 777,
+  balldontlieId: null,
+  apiNbaId: null,
+  season: null,
   name: "Real Leader",
   teamAbbr: "BOS",
   position: "G",

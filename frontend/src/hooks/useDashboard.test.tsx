@@ -55,6 +55,9 @@ const liveGame: LiveGame = {
 const leader: Player = {
   id: 1,
   nbaId: 101,
+  balldontlieId: null,
+  apiNbaId: null,
+  season: null,
   name: "Test Player",
   teamAbbr: "BOS",
   position: "F",

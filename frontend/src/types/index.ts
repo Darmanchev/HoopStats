@@ -94,7 +94,10 @@ export interface PastGame {
 
 export interface Player {
   id: number;
-  nbaId: number;
+  nbaId: number | null;
+  balldontlieId: number | null;
+  apiNbaId: number | null;
+  season: string | null;
   name: string;
   teamAbbr: string;
   position: string;

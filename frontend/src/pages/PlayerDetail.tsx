@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { PlayerDetail } from "../types";
 import TeamLogo from "../components/teams/TeamLogo";
 import { LoadingState } from "../components/ui/PageState";
@@ -22,7 +22,12 @@ const shootingStats = [
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { player, loading, error } = usePlayerDetail(id);
+  const [searchParams] = useSearchParams();
+  const season = searchParams.get("season") ?? undefined;
+  const playersPath = season
+    ? `/players?season=${encodeURIComponent(season)}`
+    : "/players";
+  const { player, loading, error } = usePlayerDetail(id, season);
 
   if (loading) return <LoadingState />;
 
@@ -31,7 +36,7 @@ export default function PlayerDetailPage() {
       <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
         <div className="text-sm text-brand">{error || "Player not found"}</div>
         <button
-          onClick={() => navigate("/players")}
+          onClick={() => navigate(playersPath)}
           className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-lg
                      cursor-pointer border-none hover:opacity-90 transition-opacity"
         >
@@ -52,7 +57,7 @@ export default function PlayerDetailPage() {
     <div className="px-6 sm:px-11 py-9 max-w-[800px] mx-auto">
       {/* Back button */}
       <button
-        onClick={() => navigate("/players")}
+        onClick={() => navigate(playersPath)}
         className="flex items-center gap-1.5 text-[13px] text-muted cursor-pointer mb-7
                    bg-transparent border-none p-0 hover:text-ink transition-colors"
       >
@@ -73,7 +78,10 @@ export default function PlayerDetailPage() {
             {player.jerseyNumber ? ` · #${player.jerseyNumber}` : ""}
             <span className="ml-3">{player.teamCity} {player.teamName}</span>
           </div>
-          <div className="text-[13px] text-faint mt-1">{player.gamesPlayed} Games Played</div>
+          <div className="text-[13px] text-faint mt-1">
+            {player.gamesPlayed} Games Played
+            {season ? ` · ${season} Season` : ""}
+          </div>
         </div>
       </div>
 

@@ -1,26 +1,48 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { usePlayerSeasons } from "../hooks/usePlayerSeasons";
 import { usePlayers } from "../hooks/usePlayers";
 import { useTeams } from "../hooks/useTeams";
 import PlayerCard from "../components/players/PlayerCard";
 import { LoadingState, ErrorState } from "../components/ui/PageState";
-import { useState } from "react";
 
 type SortBy = "pts" | "reb" | "ast" | "games_played" | "name";
 type PositionFilter = "all" | "G" | "F" | "C";
 
 export default function Players() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { teams, loading: teamsLoading } = useTeams();
+  const {
+    seasons,
+    loading: seasonsLoading,
+    error: seasonsError,
+  } = usePlayerSeasons();
   const [sortBy, setSortBy] = useState<SortBy>("pts");
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("all");
   const [search, setSearch] = useState("");
   const minGames = 10; // минимум сыгранных игр для попадания в список
+  const querySeason = searchParams.get("season");
+  const selectedSeason = querySeason ?? seasons[0] ?? "";
+  const hasSelectedSeason = Boolean(
+    selectedSeason && seasons.includes(selectedSeason),
+  );
+
+  useEffect(() => {
+    if (seasonsLoading || seasons.length === 0) return;
+    if (querySeason && seasons.includes(querySeason)) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("season", seasons[0]);
+    setSearchParams(next, { replace: true });
+  }, [querySeason, searchParams, seasons, seasonsLoading, setSearchParams]);
 
   const { players, loading, error } = usePlayers({
     sortBy,
     position: positionFilter === "all" ? undefined : positionFilter,
     minGames,
     limit: 200,
+    season: hasSelectedSeason ? selectedSeason : undefined,
+    enabled: !seasonsLoading && hasSelectedSeason,
   });
 
   const filtered = players.filter(
@@ -29,8 +51,19 @@ export default function Players() {
       p.teamAbbr.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading || teamsLoading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
+  if (seasonsLoading || teamsLoading || (hasSelectedSeason && loading)) {
+    return <LoadingState />;
+  }
+  if (seasonsError || error) {
+    return <ErrorState message={seasonsError || error || "Unable to load players"} />;
+  }
+  if (seasons.length === 0) {
+    return (
+      <div className="px-6 sm:px-11 py-16 max-w-[1100px] mx-auto text-center text-faint">
+        No player seasons imported. Run the player season import first.
+      </div>
+    );
+  }
 
   const sortOptions: { key: SortBy; label: string }[] = [
     { key: "pts", label: "PPG" },
@@ -59,6 +92,22 @@ export default function Players() {
       </header>
 
       <div className="flex gap-3 mb-6 items-center flex-wrap">
+        <select
+          aria-label="Season"
+          value={selectedSeason}
+          onChange={(event) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("season", event.target.value);
+            setSearchParams(next);
+          }}
+          className="px-3.5 py-2 rounded-lg border border-line bg-surface text-ink text-sm
+                     outline-none focus:border-brand transition-colors"
+        >
+          {seasons.map((season) => (
+            <option key={season} value={season}>{season}</option>
+          ))}
+        </select>
+
         <input
           type="text"
           placeholder="Search players..."
@@ -112,7 +161,9 @@ export default function Players() {
               key={player.id}
               player={player}
               team={teams[player.teamAbbr]}
-              onClick={(id) => navigate(`/players/${id}`)}
+              onClick={(id) => navigate(
+                `/players/${id}?season=${encodeURIComponent(selectedSeason)}`,
+              )}
             />
           ))}
         </div>

@@ -84,17 +84,19 @@ export default function PlayerCard({ player, team, onClick }: Props) {
 
       {/* ПРАВО — фото игрока в отдельной колонке */}
       <div className="w-[122px] shrink-0 relative">
-        <img
-          src={HEADSHOT_URL(player.nbaId)}
-          alt={player.name}
-          loading="lazy"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-          className="absolute inset-0 w-full h-full object-cover object-top
-                     select-none pointer-events-none
-                     [mask-image:linear-gradient(to_right,transparent,#000_38%)]"
-        />
+        {player.nbaId !== null && (
+          <img
+            src={HEADSHOT_URL(player.nbaId)}
+            alt={player.name}
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+            className="absolute inset-0 w-full h-full object-cover object-top
+                       select-none pointer-events-none
+                       [mask-image:linear-gradient(to_right,transparent,#000_38%)]"
+          />
+        )}
       </div>
     </div>
   );

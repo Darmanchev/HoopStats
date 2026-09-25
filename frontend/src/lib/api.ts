@@ -107,6 +107,7 @@ export async function getPlayers(params?: {
   team?: string;
   position?: string;
   min_games?: number;
+  season?: string;
 }): Promise<Player[]> {
   const qs = new URLSearchParams();
   if (params?.skip !== undefined) qs.set("skip", String(params.skip));
@@ -115,12 +116,21 @@ export async function getPlayers(params?: {
   if (params?.team) qs.set("team", params.team);
   if (params?.position) qs.set("position", params.position);
   if (params?.min_games !== undefined) qs.set("min_games", String(params.min_games));
+  if (params?.season) qs.set("season", params.season);
   const query = qs.toString();
   return fetcher(`/players/${query ? `?${query}` : ""}`);
 }
 
-export async function getPlayer(id: number): Promise<PlayerDetail> {
-  return fetcher(`/players/${id}`);
+export function getPlayerSeasons(): Promise<string[]> {
+  return fetcher("/players/seasons");
+}
+
+export async function getPlayer(
+  id: number,
+  season?: string,
+): Promise<PlayerDetail> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return fetcher(`/players/${id}${query}`);
 }
 
 export interface EloEntry {
