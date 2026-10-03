@@ -81,6 +81,11 @@ const player: Player = {
 };
 
 const dashboardData = {
+  selectedSeason: undefined,
+  setSelectedSeason: vi.fn(),
+  seasonData: null,
+  sourceStatus: {},
+  importedSeasons: [],
   teams,
   upcoming: [upcoming],
   today: [live],

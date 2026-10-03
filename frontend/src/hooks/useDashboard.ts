@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getBoxScore,
+  getDashboardSeason,
+  getSyncStatus,
   getLeaders,
   getTeams,
   getTodayGames,
   getUpcomingGames,
 } from "../lib/api";
+import type { DashboardSeasonData, SyncSourceStatus } from "../lib/api";
 import type {
   LiveGame,
   Player,
@@ -17,7 +20,7 @@ import type {
 
 const DEFAULT_REFRESH_MS = 300_000;
 
-type DashboardResource = "teams" | "upcoming" | "today" | "leaders" | "boxScore";
+type DashboardResource = "teams" | "upcoming" | "today" | "leaders" | "boxScore" | "seasonData" | "sourceStatus";
 
 export type DashboardErrors = Partial<Record<DashboardResource, string>>;
 
@@ -80,6 +83,10 @@ function selectBoxScoreGame(today: LiveGame[]): LiveGame | null {
 }
 
 export function useDashboard() {
+  const [selectedSeason, setSelectedSeason] = useState<string | undefined>();
+  const [seasonData, setSeasonData] = useState<{ key: string | undefined; data: DashboardSeasonData } | null>(null);
+  const [sourceStatus, setSourceStatus] = useState<Record<string, SyncSourceStatus>>({});
+  const requestRef = useRef(0);
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [upcoming, setUpcoming] = useState<UpcomingGame[]>([]);
   const [today, setToday] = useState<LiveGame[]>([]);
@@ -106,6 +113,7 @@ export function useDashboard() {
   });
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestRef.current;
     const isInitialLoad = !loadedRef.current;
     if (!isInitialLoad && mountedRef.current) setRefreshing(true);
 
@@ -113,15 +121,28 @@ export function useDashboard() {
       getTeams(),
       getUpcomingGames(),
       getTodayGames(),
-      getLeaders(),
+      getLeaders(selectedSeason),
+      getDashboardSeason(selectedSeason),
+      getSyncStatus(),
     ] as const);
 
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || requestId !== requestRef.current) return;
 
     const nextData = { ...dataRef.current };
     const nextErrors: DashboardErrors = {};
     const [teamsResult, upcomingResult, todayResult, leadersResult] = results;
-    const primaryRefreshSucceeded = results.some((result) => result.status === "fulfilled");
+    const primaryRefreshSucceeded = results.slice(0, 4).some((result) => result.status === "fulfilled");
+    const [seasonResult, statusResult] = results.slice(4);
+    if (seasonResult.status === "fulfilled") {
+      setSeasonData({ key: selectedSeason, data: seasonResult.value as DashboardSeasonData });
+    } else {
+      nextErrors.seasonData = errorMessage(seasonResult.reason);
+    }
+    if (statusResult.status === "fulfilled") {
+      setSourceStatus(statusResult.value as Record<string, SyncSourceStatus>);
+    } else {
+      nextErrors.sourceStatus = errorMessage(statusResult.reason);
+    }
 
     if (teamsResult.status === "fulfilled") {
       nextData.teams = teamsResult.value;
@@ -164,7 +185,7 @@ export function useDashboard() {
       }
       try {
         const stats = await getBoxScore(nextBoxScoreGame.id);
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || requestId !== requestRef.current) return;
         boxScoreRef.current = { gameId: nextBoxScoreGame.id, players: stats };
         setBoxScore(stats);
       } catch (reason) {
@@ -175,13 +196,13 @@ export function useDashboard() {
       setBoxScore([]);
     }
 
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || requestId !== requestRef.current) return;
     setErrors(nextErrors);
     if (primaryRefreshSucceeded) setLastUpdated(new Date());
     loadedRef.current = true;
     setInitialLoading(false);
     setRefreshing(false);
-  }, []);
+  }, [selectedSeason]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -206,6 +227,11 @@ export function useDashboard() {
   }, [refresh]);
 
   return {
+    selectedSeason,
+    setSelectedSeason,
+    seasonData: seasonData && seasonData.key === selectedSeason ? seasonData.data : null,
+    sourceStatus,
+    importedSeasons: seasonData?.data.seasons ?? [],
     teams,
     upcoming,
     today,

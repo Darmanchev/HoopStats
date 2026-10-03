@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -8,6 +8,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
+    current_season: str = "2026-27"
+
+    @field_validator("current_season")
+    @classmethod
+    def validate_current_season(cls, value: str) -> str:
+        import re
+        match = re.fullmatch(r"(\d{4})-(\d{2})", value)
+        if not match or int(match[2]) != (int(match[1]) + 1) % 100:
+            raise ValueError("CURRENT_SEASON must use consecutive YYYY-YY years")
+        return value
+
     database_url: str | None = None
     db_user: str | None = None
     db_password: str | None = None

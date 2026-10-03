@@ -45,7 +45,7 @@ export default function FeaturedGameWidget({ game, team1, team2, onOpen = () => 
         <div className="flex items-center justify-center gap-3 sm:gap-6 mb-6 min-w-0">
           <TeamLogo team={team1} abbr={game.team1} size={50} />
           <div className={`min-w-0 font-display font-bold tracking-tight text-ink text-center ${hasScore ? "text-[32px] sm:text-[42px]" : "text-[22px] sm:text-[30px] leading-tight"}`}>
-            {hasScore ? `${liveGame.score1} - ${liveGame.score2}` : formatGameTime(game)}
+            {hasScore ? `${liveGame.score1} - ${liveGame.score2}` : formatGameTime(game, false)}
           </div>
           <TeamLogo team={team2} abbr={game.team2} size={50} />
         </div>

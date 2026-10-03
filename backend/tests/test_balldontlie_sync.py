@@ -203,10 +203,8 @@ async def test_invalid_games_response_causes_no_writes(
     monkeypatch.setattr(sync_module.games_repo, "upsert_games", upsert)
     monkeypatch.setattr(sync_module, "invalidate_live_caches", invalidate_live)
 
-    await sync_module.sync_games(
-        db,  # type: ignore[arg-type]
-        today=date(2026, 9, 23),
-    )
+    with pytest.raises(ValueError):
+        await sync_module.sync_games(db, today=date(2026, 9, 23))
 
     reset_today.assert_not_awaited()
     upsert.assert_not_awaited()
@@ -242,10 +240,8 @@ async def test_games_provider_error_causes_no_writes(
     monkeypatch.setattr(sync_module.games_repo, "upsert_games", upsert)
     monkeypatch.setattr(sync_module, "invalidate_live_caches", invalidate_live)
 
-    await sync_module.sync_games(
-        db,  # type: ignore[arg-type]
-        today=date(2026, 9, 23),
-    )
+    with pytest.raises(BallDontLieError):
+        await sync_module.sync_games(db, today=date(2026, 9, 23))
 
     reset_today.assert_not_awaited()
     upsert.assert_not_awaited()

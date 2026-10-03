@@ -110,6 +110,23 @@ staggered and never run concurrently, which reduces load on the external APIs.
 
 ## Production deployment with Coolify
 
+Set `CURRENT_SEASON=2026-27` (or the season you want the scheduled imports to
+refresh) in the deployment environment. The value must use consecutive
+`YYYY-YY` years. Dashboard historical statistics have a separate season selector:
+leaders use imported player-season averages, and standings/form use completed
+regular-season games. Seasons with only one dataset show an explicit missing-data
+message for the other dataset. Partial game imports produce partial team records.
+
+The live job matches NBA scoreboard games to local BALLDONTLIE records by home
+team, away team, and Eastern game date. It imports box scores using the official
+NBA ID and stores them under the local game ID; ambiguous matches are skipped.
+NBA scoreboard/box-score availability still depends on the public NBA service.
+
+The dashboard's "Last checked" time is the browser refresh time. Source update
+status separately reports successful imports and failures. Status is held in
+Redis and starts empty after Redis is recreated. `make seed` prints per-step
+counts and exits unsuccessfully if any step fails, while completing other steps.
+
 Choose the Docker Compose build pack in Coolify and set **Docker Compose
 Location** to `/compose.prod.yaml`. Set a domain for the `frontend` service on
 container port `8080`. Set `APP_HOST` to that domain's hostname without a

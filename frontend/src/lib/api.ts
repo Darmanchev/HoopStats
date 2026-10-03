@@ -150,10 +150,35 @@ export async function getElo(): Promise<EloEntry[]> {
   return fetcher("/analytics/elo");
 }
 
-export function getLeaders(): Promise<Record<string, Player[]>> {
-  return cachedRequest("analytics:leaders", API_MEMORY_CACHE_MS, () =>
-    fetcher("/analytics/leaders"),
+export function getLeaders(season?: string): Promise<Record<string, Player[]>> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return cachedRequest(`analytics:leaders:${season ?? "latest"}`, API_MEMORY_CACHE_MS, () =>
+    fetcher(`/analytics/leaders${query}`),
   );
+}
+
+export interface DashboardSeasonData {
+  season: string | null;
+  seasons: string[];
+  teams: Team[];
+  leaders: Record<string, Player[]>;
+  teamsAvailable: boolean;
+  playersAvailable: boolean;
+}
+
+export interface SyncSourceStatus {
+  state: "running" | "success" | "failed";
+  last_attempt: string;
+  last_success?: string;
+  count?: number | null;
+}
+
+export function getDashboardSeason(season?: string): Promise<DashboardSeasonData> {
+  return fetcher(`/analytics/dashboard${season ? `?season=${encodeURIComponent(season)}` : ""}`);
+}
+
+export function getSyncStatus(): Promise<Record<string, SyncSourceStatus>> {
+  return fetcher("/analytics/sync-status");
 }
 
 export function getBoxScore(gameId: string): Promise<PlayerGameStat[]> {

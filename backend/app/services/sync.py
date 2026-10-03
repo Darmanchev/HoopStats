@@ -39,7 +39,7 @@ from .utils import CURRENT_SEASON, parse_log_date
 logger = logging.getLogger(__name__)
 
 
-async def sync_teams(db: AsyncSession) -> None:
+async def sync_teams(db: AsyncSession) -> int:
     """Load BALLDONTLIE team profiles without paid standings data."""
     try:
         async with create_balldontlie_client() as client:
@@ -50,17 +50,18 @@ async def sync_teams(db: AsyncSession) -> None:
     except (BallDontLieError, ValueError) as exc:
         await db.rollback()
         logger.error("BALLDONTLIE team sync failed: %s", exc)
-        return
+        raise
 
     await invalidate_teams_cache()
     logger.info("Synced %d teams (%d new)", len(profiles), count_new)
+    return len(profiles)
 
 
 async def sync_games(
     db: AsyncSession,
     *,
     today: date | None = None,
-) -> None:
+) -> int:
     """Load and persist the validated BALLDONTLIE games for one date."""
     sync_date = today or datetime.now(timezone.utc).date()
     date_text = sync_date.isoformat()
@@ -71,14 +72,14 @@ async def sync_games(
     except (BallDontLieError, ValueError) as exc:
         await db.rollback()
         logger.error("BALLDONTLIE game sync failed: %s", exc)
-        return
+        raise
 
     await games_repo.reset_today_flag(db)
     if not games_data:
         await db.commit()
         await invalidate_live_caches([])
         logger.info("No games returned for %s", date_text)
-        return
+        return 0
 
     affected_ids = await games_repo.upsert_games(
         db,
@@ -89,6 +90,7 @@ async def sync_games(
     await invalidate_live_caches(affected_ids)
     await invalidate_elo_cache()
     logger.info("Synced %d games for %s", len(affected_ids), date_text)
+    return len(affected_ids)
 
 
 def season_start_year(season: str) -> int:
@@ -105,7 +107,7 @@ def season_start_year(season: str) -> int:
 async def sync_historical_games(
     db: AsyncSession,
     season: str = CURRENT_SEASON,
-) -> None:
+) -> int:
     """Load final regular-season and playoff games from BALLDONTLIE."""
     start_year = season_start_year(season)
     try:
@@ -128,17 +130,18 @@ async def sync_historical_games(
     except (BallDontLieError, ValueError) as exc:
         await db.rollback()
         logger.error("BALLDONTLIE historical sync failed: %s", exc)
-        return
+        raise
 
     await invalidate_elo_cache()
     logger.info("Synced %d final games for %s", len(affected_ids), season)
+    return len(affected_ids)
 
 
 async def sync_schedule(
     db: AsyncSession,
     *,
     start_date: date | None = None,
-) -> None:
+) -> int:
     """Load the next 30 days of BALLDONTLIE games."""
     window_start = start_date or datetime.now(timezone.utc).date()
     window_end = window_start + timedelta(days=30)
@@ -159,14 +162,15 @@ async def sync_schedule(
     except (BallDontLieError, ValueError) as exc:
         await db.rollback()
         logger.error("BALLDONTLIE schedule sync failed: %s", exc)
-        return
+        raise
 
     await invalidate_live_caches(affected_ids)
     await invalidate_elo_cache()
     logger.info("Synced %d games in the 30-day schedule", len(affected_ids))
+    return len(affected_ids)
 
 
-async def sync_team_stats(db: AsyncSession) -> None:
+async def sync_team_stats(db: AsyncSession) -> int:
     """Загружает форму и последние счета для всех команд."""
     result = await db.execute(select(Team))
     teams = result.scalars().all()
@@ -226,9 +230,12 @@ async def sync_team_stats(db: AsyncSession) -> None:
         "Статистика команд синхронизирована: %d успешно, %d ошибок",
         success_count, error_count,
     )
+    if error_count:
+        raise RuntimeError(f"Team statistics incomplete: {success_count} succeeded, {error_count} failed")
+    return success_count
 
 
-async def sync_players(db: AsyncSession, season: str = CURRENT_SEASON) -> None:
+async def sync_players(db: AsyncSession, season: str = CURRENT_SEASON) -> int:
     """Load basic BALLDONTLIE profiles for teams present in the database."""
     del season
     try:
@@ -245,16 +252,17 @@ async def sync_players(db: AsyncSession, season: str = CURRENT_SEASON) -> None:
     except (BallDontLieError, ValueError) as exc:
         await db.rollback()
         logger.error("BALLDONTLIE player sync failed: %s", exc)
-        return
+        raise
 
     logger.info(
         "Synced player profiles: %d new, %d updated",
         count_new,
         count_updated,
     )
+    return count_new + count_updated
 
 
-async def sync_injuries(db: AsyncSession) -> None:
+async def sync_injuries(db: AsyncSession) -> int:
     """Загружает данные о травмах из ESPN API."""
     logger.info("Загрузка данных о травмах из ESPN...")
 
@@ -262,11 +270,12 @@ async def sync_injuries(db: AsyncSession) -> None:
         teams_injuries = await espn_client.fetch_injuries()
     except Exception as e:
         logger.error("Ошибка при загрузке травм: %s: %s", type(e).__name__, e)
-        return
+        raise
 
     if not teams_injuries:
         logger.warning("Травм не найдено")
-        return
+        return 0
 
     count = await injuries_repo.replace_all_injuries(db, teams_injuries)
     logger.info("Загружено %d записей о травмах", count)
+    return count

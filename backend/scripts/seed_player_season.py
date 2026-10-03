@@ -5,6 +5,7 @@ from app.database import SessionLocal
 from app.services.clients.api_nba import ApiNbaError
 from app.services.clients.api_nba_normalizers import season_start_year
 from app.services.player_seasons import sync_player_season
+from app.services.sync_status import record_sync_status
 
 
 def season_argument(value: str) -> str:
@@ -16,8 +17,15 @@ def season_argument(value: str) -> str:
 
 
 async def main(season: str) -> None:
-    async with SessionLocal() as db:
-        players, updated = await sync_player_season(db, season)
+    status_name = f"player_season:{season}"
+    await record_sync_status(status_name, "running")
+    try:
+        async with SessionLocal() as db:
+            players, updated = await sync_player_season(db, season)
+    except Exception:
+        await record_sync_status(status_name, "failed")
+        raise
+    await record_sync_status(status_name, "success", players + updated)
     print(
         f"Imported {players} new players and updated {updated} players "
         f"for {season}"
