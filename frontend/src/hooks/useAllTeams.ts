@@ -2,27 +2,28 @@ import { useState, useEffect } from "react";
 import type { Team, TeamStats } from "../types";
 import { getTeams } from "../lib/api";
 
-export function useAllTeams() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [stats, setStats] = useState<Record<string, TeamStats>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function useAllTeams(season?: string, enabled = true) {
+  const key = enabled ? season ?? "current" : null;
+  const [result, setResult] = useState<{
+    key: string; teams: Team[]; error: string | null;
+  } | null>(null);
 
   useEffect(() => {
-    getTeams()
+    if (key === null) return;
+    let cancelled = false;
+    getTeams(season)
       .then((teamsMap) => {
-        const list = Object.values(teamsMap);
-        setTeams(list);
-
-        const statsMap: Record<string, TeamStats> = {};
-        list.forEach((team) => {
-          if (team.stats) statsMap[team.abbr] = team.stats;
-        });
-        setStats(statsMap);
+        if (!cancelled) setResult({ key, teams: Object.values(teamsMap), error: null });
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((e) => {
+        if (!cancelled) setResult({ key, teams: [], error: e.message });
+      });
+    return () => { cancelled = true; };
+  }, [key, season]);
 
-  return { teams, stats, loading, error };
+  const current = key !== null && result?.key === key;
+  const teams = current ? result.teams : [];
+  const stats: Record<string, TeamStats> = {};
+  teams.forEach((team) => { if (team.stats) stats[team.abbr] = team.stats; });
+  return { teams, stats, loading: key !== null && !current, error: current ? result.error : null };
 }

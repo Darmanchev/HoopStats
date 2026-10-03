@@ -101,9 +101,22 @@ describe("Players season selection", () => {
     expect(screen.getByRole("combobox", { name: /season/i })).toHaveValue(
       "2025-26",
     );
-    expect(screen.getByTestId("location")).toHaveTextContent(
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(
       "/players?season=2025-26",
-    );
+    ));
+  });
+
+  it("paginates and sends search to the server without losing input focus", async () => {
+    vi.mocked(getPlayers).mockResolvedValue(Array.from({ length: 51 }, (_, id) => ({ ...player, id })));
+    renderPlayers();
+    const input = await screen.findByPlaceholderText("Search players...");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(getPlayers).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 50, limit: 51 })));
+    await userEvent.type(input, "Curry");
+    await waitFor(() => expect(getPlayers).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 0, search: "Curry" })));
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("Curry");
   });
 
   it("uses an explicit season and updates the URL when selection changes", async () => {

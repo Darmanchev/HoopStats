@@ -27,6 +27,8 @@ class PlayerSeasonStat(Base):
         index=True,
     )
     games_played: Mapped[int] = mapped_column(Integer)
+    position: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    jersey_number: Mapped[str | None] = mapped_column(String(10), nullable=True)
     pts: Mapped[float] = mapped_column(Float)
     reb: Mapped[float] = mapped_column(Float)
     ast: Mapped[float] = mapped_column(Float)

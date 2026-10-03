@@ -1,5 +1,6 @@
 import type { Player, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
+import PlayerHeadshot from "./PlayerHeadshot";
 
 interface Props {
   player: Player;
@@ -12,10 +13,6 @@ const statItems = [
   { key: "reb" as const, label: "RPG", color: "#1E40AF" },
   { key: "ast" as const, label: "APG", color: "#059669" },
 ];
-
-// Официальный CDN NBA с фото игроков (ключ — nbaId)
-const HEADSHOT_URL = (nbaId: number) =>
-  `https://cdn.nba.com/headshots/nba/latest/1040x760/${nbaId}.png`;
 
 export default function PlayerCard({ player, team, onClick }: Props) {
   const fallbackTeam: Team = {
@@ -83,21 +80,7 @@ export default function PlayerCard({ player, team, onClick }: Props) {
       </div>
 
       {/* ПРАВО — фото игрока в отдельной колонке */}
-      <div className="w-[122px] shrink-0 relative">
-        {player.nbaId !== null && (
-          <img
-            src={HEADSHOT_URL(player.nbaId)}
-            alt={player.name}
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-            className="absolute inset-0 w-full h-full object-cover object-top
-                       select-none pointer-events-none
-                       [mask-image:linear-gradient(to_right,transparent,#000_38%)]"
-          />
-        )}
-      </div>
+      <PlayerHeadshot nbaId={player.nbaId} name={player.name} className="w-[108px] sm:w-[122px] shrink-0 select-none pointer-events-none" />
     </div>
   );
 }

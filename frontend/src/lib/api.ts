@@ -80,16 +80,22 @@ export async function getMatch(id: string): Promise<LiveGame> {
   return fetcher(`/games/${id}`);
 }
 
-export function getTeams(): Promise<Record<string, Team>> {
-  return cachedRequest("teams", API_MEMORY_CACHE_MS, () =>
-    fetcher<Team[]>("/teams/").then((list) =>
+export function getTeams(season?: string): Promise<Record<string, Team>> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return cachedRequest(season ? `teams:${season}` : "teams", API_MEMORY_CACHE_MS, () =>
+    fetcher<Team[]>(`/teams/${query}`).then((list) =>
       Object.fromEntries(list.map((team) => [team.abbr, team])),
     ),
   );
 }
 
-export async function getTeamStats(abbr: string): Promise<TeamStats> {
-  return fetcher(`/teams/${abbr}/stats`)
+export function getTeamSeasons(): Promise<string[]> {
+  return fetcher("/teams/seasons");
+}
+
+export async function getTeamStats(abbr: string, season?: string): Promise<TeamStats> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return fetcher(`/teams/${abbr}/stats${query}`)
 }
 
 export async function getInjuries(): Promise<Injury[]> {
@@ -101,6 +107,7 @@ export async function getTeamInjuries(team_abbr: string): Promise<Injury[]> {
 }
 
 export async function getPlayers(params?: {
+  search?: string;
   skip?: number;
   limit?: number;
   sort_by?: string;
@@ -117,6 +124,7 @@ export async function getPlayers(params?: {
   if (params?.position) qs.set("position", params.position);
   if (params?.min_games !== undefined) qs.set("min_games", String(params.min_games));
   if (params?.season) qs.set("season", params.season);
+  if (params?.search) qs.set("search", params.search);
   const query = qs.toString();
   return fetcher(`/players/${query ? `?${query}` : ""}`);
 }

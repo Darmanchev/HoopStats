@@ -4,6 +4,8 @@ import { getPlayers } from "../lib/api";
 import type { Player } from "../types";
 
 interface UsePlayersOptions {
+  search?: string;
+  skip?: number;
   sortBy?: string;
   team?: string;
   position?: string;
@@ -44,6 +46,8 @@ export function usePlayers(options?: UsePlayersOptions) {
         options?.minGames ?? 10,
         options?.limit ?? 200,
         options?.season ?? "",
+        options?.search ?? "",
+        options?.skip ?? 0,
       ])
     : null;
   const [result, setResult] = useState<PlayersResult | null>(null);
@@ -59,6 +63,8 @@ export function usePlayers(options?: UsePlayersOptions) {
       min_games: options?.minGames ?? 10,
       limit: options?.limit ?? 200,
       season: options?.season,
+      search: options?.search,
+      skip: options?.skip,
     })
       .then((players) => {
         if (!cancelled) {
@@ -86,6 +92,8 @@ export function usePlayers(options?: UsePlayersOptions) {
     options?.minGames,
     options?.limit,
     options?.season,
+    options?.search,
+    options?.skip,
   ]);
 
   const current = requestKey !== null && result?.key === requestKey;

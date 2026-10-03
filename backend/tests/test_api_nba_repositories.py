@@ -74,6 +74,38 @@ def make_player(name: str = "Stephen Curry") -> Player:
     )
 
 
+@pytest.mark.asyncio
+async def test_historical_import_preserves_shared_profile_and_stores_snapshot(db_session):
+    player = make_player()
+    player.team_abbr = "BOS"
+    db_session.add_all([make_team(), Team(abbr="BOS", name="Celtics", city="Boston", record="0-0"), player])
+    await db_session.commit()
+    profile = {**API_PLAYER, "position": "SG", "jersey_number": "99"}
+    await upsert_player_season(db_session, season="2024-25",
+        teams=[{"api_nba_id": 10, "abbr": "GSW"}], profiles=[profile],
+        rows=[{**UPDATED_2025_ROW, "season": "2024-25"}])
+    await db_session.commit()
+    row = (await db_session.execute(select(PlayerSeasonStat))).scalar_one()
+    assert player.position == "G"
+    assert player.team_abbr == "BOS"
+    assert player.jersey_number == "30"
+    assert row.position == "SG"
+    assert row.jersey_number == "99"
+
+
+@pytest.mark.asyncio
+async def test_replacement_with_fewer_games_is_rejected(db_session):
+    db_session.add(make_team())
+    await db_session.commit()
+    kwargs = dict(season="2025-26", teams=[{"api_nba_id": 10, "abbr": "GSW"}], profiles=[API_PLAYER])
+    await upsert_player_season(db_session, **kwargs, rows=[UPDATED_2025_ROW])
+    await db_session.commit()
+    with pytest.raises(ValueError, match="Incomplete"):
+        await upsert_player_season(db_session, **kwargs, rows=[{**UPDATED_2025_ROW, "games_played": 0}])
+    row = (await db_session.execute(select(PlayerSeasonStat))).scalar_one()
+    assert row.games_played == 79
+
+
 def test_models_expose_separate_provider_ids() -> None:
     assert {column.name for column in inspect(Team).columns} >= {
         "nba_id",

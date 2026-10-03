@@ -183,6 +183,19 @@ def test_roster_player_with_no_games_gets_zero_season_row() -> None:
     assert seasons[0]["recent_games"] == 0
 
 
+@pytest.mark.parametrize("minutes,comment", [("0:00", None), ("0:00", "Did not play"), ("1:00", "DNP - injury")])
+def test_dnp_records_do_not_inflate_games(minutes, comment):
+    record = stat(1001, 1, attempts=False, minutes=minutes)
+    record.update(points=0, totReb=0, assists=0, steals=0, blocks=0, comment=comment)
+    _, rows = aggregate_player_season("2024-25", {1: "ATL"}, {1: [RAW_PLAYER]}, {1: [record]})
+    assert rows[0]["games_played"] == 0
+
+
+def test_zero_rounded_minutes_with_statistics_is_an_appearance():
+    _, rows = aggregate_player_season("2024-25", {1: "ATL"}, {1: [RAW_PLAYER]}, {1: [stat(1001, 1, minutes="0:00")]})
+    assert rows[0]["games_played"] == 1
+
+
 def test_missing_positive_player_id_is_rejected_when_no_valid_player_exists() -> None:
     invalid = {**RAW_PLAYER, "id": 0}
 

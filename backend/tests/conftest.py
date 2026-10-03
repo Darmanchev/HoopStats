@@ -37,6 +37,7 @@ async def db_session() -> AsyncIterator[AsyncSession]:
                     Team.__table__,
                     Player.__table__,
                     PlayerSeasonStat.__table__,
+                    Game.__table__,
                 ],
             )
         )

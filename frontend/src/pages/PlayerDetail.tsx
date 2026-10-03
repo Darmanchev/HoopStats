@@ -3,6 +3,7 @@ import type { PlayerDetail } from "../types";
 import TeamLogo from "../components/teams/TeamLogo";
 import { LoadingState } from "../components/ui/PageState";
 import { usePlayerDetail } from "../hooks/usePlayerDetail";
+import PlayerHeadshot from "../components/players/PlayerHeadshot";
 
 const statCategories = [
   { key: "pts",  label: "Points",   sub: "PPG", color: "#C8102E" },
@@ -69,9 +70,9 @@ export default function PlayerDetailPage() {
       </button>
 
       {/* Header */}
-      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-2xl px-10 py-8 mb-5 flex items-center gap-6">
-        <TeamLogo team={teamFallback} abbr={player.teamAbbr} size={80} />
-        <div>
+      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-2xl px-5 sm:px-10 py-8 mb-5 flex flex-wrap items-center gap-6">
+        <PlayerHeadshot nbaId={player.nbaId} name={player.name} className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl shrink-0" />
+        <div className="flex-1 min-w-0">
           <div className="font-display font-extrabold text-[32px]">{player.name}</div>
           <div className="text-base text-muted mt-1">
             {player.position}
@@ -83,6 +84,7 @@ export default function PlayerDetailPage() {
             {season ? ` · ${season} Season` : ""}
           </div>
         </div>
+        <TeamLogo team={teamFallback} abbr={player.teamAbbr} size={48} />
       </div>
 
       {/* Per-game averages */}

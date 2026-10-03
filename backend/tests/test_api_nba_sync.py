@@ -29,7 +29,7 @@ AGGREGATED_ROWS = [{
     "api_nba_id": 100,
     "season": "2025-26",
     "primary_team_abbr": "T01",
-    "games_played": 0,
+    "games_played": 1,
     "pts": 0.0,
     "reb": 0.0,
     "ast": 0.0,
@@ -88,7 +88,23 @@ class FakeApiNbaClient:
 
     async def _stats(self, *, team_id: int, season: int) -> list[dict]:
         assert season == 2025
-        return []
+        return [{"player": {"id": team_id * 100, "firstname": "Test", "lastname": str(team_id)},
+                 "team": {"id": team_id}, "game": {"id": team_id}, "min": "30:00", "points": 10}]
+
+
+@pytest.mark.asyncio
+async def test_missing_team_statistics_never_replaces_season(monkeypatch):
+    client = FakeApiNbaClient(teams=RAW_30_TEAMS)
+    client.get_player_statistics = AsyncMock(return_value=[])
+    db = FakeSession()
+    upsert = AsyncMock()
+    monkeypatch.setattr(player_seasons, "create_api_nba_client", lambda: client)
+    monkeypatch.setattr(player_seasons.player_seasons_repo, "upsert_player_season", upsert)
+    with pytest.raises(ValueError, match="Incomplete"):
+        await player_seasons.sync_player_season(db, "2025-26")
+    upsert.assert_not_awaited()
+    db.commit.assert_not_awaited()
+    db.rollback.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -122,7 +138,7 @@ async def test_sync_player_season_fetches_each_team_and_commits_once(
         "team_id": 1,
         "season": 2025,
     }
-    aggregate.assert_called_once()
+    assert aggregate.call_count == 31
     upsert.assert_awaited_once()
     db.commit.assert_awaited_once_with()
     db.rollback.assert_not_awaited()

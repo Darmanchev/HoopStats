@@ -207,6 +207,14 @@ def aggregate_player_season(
             minutes = _minutes(record.get("min"))
             if team_id is None or game_id is None or minutes is None:
                 continue
+            comment = str(record.get("comment") or "").lower()
+            if any(marker in comment for marker in ("did not play", "did not dress", "dnp", "inactive", "not with team")):
+                continue
+            if minutes == 0 and not any(
+                _number(record.get(field)) > 0
+                for field in ("points", "totReb", "assists", "steals", "blocks", "fga", "fta", "turnovers", "pFouls")
+            ):
+                continue
             abbr = valid_team_map.get(team_id)
             if abbr is None:
                 continue

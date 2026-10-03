@@ -58,6 +58,18 @@ async def sync_player_season(
                 f"API-NBA returned no players for season {season}; "
                 "existing season data was not changed"
             )
+        if not any(row["games_played"] > 0 for row in rows) or any(
+            not stat_pages[team["api_nba_id"]] for team in teams
+        ):
+            raise ValueError("Incomplete API-NBA statistics; existing season data was not changed")
+        for team in teams:
+            team_id = team["api_nba_id"]
+            _, team_rows = aggregate_player_season(
+                season, {team_id: team["abbr"]},
+                {team_id: roster_pages[team_id]}, {team_id: stat_pages[team_id]},
+            )
+            if not any(row["games_played"] > 0 for row in team_rows):
+                raise ValueError(f"Incomplete statistics for {team['abbr']}; existing season data was not changed")
         result = await player_seasons_repo.upsert_player_season(
             db,
             season=season,

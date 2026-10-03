@@ -4,6 +4,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.database import get_db
 from app.models.player import Player
@@ -70,6 +71,44 @@ async def insert_player_seasons(
     return player
 
 
+@pytest.mark.asyncio
+async def test_season_position_filter_uses_snapshot_and_hybrid_group(db_session, players_client):
+    player = await insert_player_seasons(db_session, ["2024-25"])
+    player.position = "C"
+    row = (await db_session.execute(select(PlayerSeasonStat))).scalar_one()
+    row.position = "G-F"
+    row.jersey_number = "12"
+    await db_session.commit()
+    for position in ("G", "F"):
+        response = await players_client.get(f"/players/?season=2024-25&position={position}")
+        assert response.status_code == 200
+        assert response.json()[0]["position"] == "G-F"
+        assert response.json()[0]["jerseyNumber"] == "12"
+    response = await players_client.get("/players/?season=2024-25&position=C")
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_search_filters_before_pagination(db_session, players_client):
+    player = await insert_player_seasons(db_session, ["2024-25"])
+    for index in range(205):
+        copy = Player(**{column.name: getattr(player, column.name)
+                         for column in Player.__table__.columns
+                         if column.name not in {"id", "nba_id", "balldontlie_id", "api_nba_id"}})
+        copy.name = f"Player {index:03}"
+        db_session.add(copy)
+    await db_session.commit()
+    first = await players_client.get("/players/?sort_by=name&limit=200")
+    assert len(first.json()) == 200
+    assert all(row["name"] != "Stephen Curry" for row in first.json())
+    found = await players_client.get("/players/?sort_by=name&limit=50&search=Curry")
+    assert [row["name"] for row in found.json()] == ["Stephen Curry"]
+    seasonal = await players_client.get("/players/?season=2024-25&search=Curry")
+    assert [row["name"] for row in seasonal.json()] == ["Stephen Curry"]
+    last = await players_client.get("/players/?sort_by=name&limit=200&skip=200")
+    assert len(last.json()) == 6
+
+
 class FakeResult:
     def __init__(self, player: Player | None) -> None:
         self.player = player
@@ -128,7 +167,7 @@ async def test_player_detail_exposes_provider_id_without_official_id() -> None:
         response = await client.get("/players/1")
 
     assert response.status_code == 200
-    assert response.json()["nbaId"] is None
+    assert response.json()["nbaId"] == 201939
     assert response.json()["balldontlieId"] == 115
 
 
@@ -146,7 +185,7 @@ async def test_player_list_uses_selected_season_stats(
     assert response.status_code == 200
     assert response.json()[0] == {
         "id": 1,
-        "nbaId": None,
+        "nbaId": 201939,
         "balldontlieId": 115,
         "apiNbaId": 417,
         "season": "2025-26",

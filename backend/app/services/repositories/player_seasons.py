@@ -52,6 +52,17 @@ async def upsert_player_season(
     if set(profile_by_id) != set(row_by_id):
         raise ValueError("every API-NBA player profile must have a season row")
 
+    existing_stats = (await db.execute(
+        select(Player.api_nba_id, PlayerSeasonStat.games_played)
+        .join(PlayerSeasonStat, PlayerSeasonStat.player_id == Player.id)
+        .where(PlayerSeasonStat.season == season)
+    )).all()
+    if any(
+        provider_id not in row_by_id or row_by_id[provider_id]["games_played"] < games
+        for provider_id, games in existing_stats if games > 0 and provider_id is not None
+    ):
+        raise ValueError("Incomplete season replacement would lose existing game statistics")
+
     existing_teams = (
         await db.execute(select(Team).where(Team.abbr.in_(team_abbrs)))
     ).scalars().all()
@@ -113,9 +124,6 @@ async def upsert_player_season(
         else:
             player.api_nba_id = provider_id
             player.name = name
-            player.team_abbr = row["primary_team_abbr"]
-            player.position = profile["position"]
-            player.jersey_number = profile["jersey_number"]
             count_updated += 1
         mapped_players[provider_id] = player
 
@@ -132,6 +140,8 @@ async def upsert_player_season(
             season=season,
             primary_team_abbr=row["primary_team_abbr"],
             games_played=row["games_played"],
+            position=profile_by_id[provider_id]["position"],
+            jersey_number=profile_by_id[provider_id]["jersey_number"],
             pts=row["pts"],
             reb=row["reb"],
             ast=row["ast"],

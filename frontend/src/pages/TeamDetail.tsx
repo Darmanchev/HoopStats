@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import TeamLogo from "../components/teams/TeamLogo";
 import FormBadge from "../components/teams/FormBadge";
 import SparkLine from "../components/teams/SparkLine";
@@ -9,7 +9,10 @@ import { getTeamColors } from "../utils/colors";
 export default function TeamDetail() {
   const { abbr } = useParams<{ abbr: string }>();
   const navigate = useNavigate();
-  const { team, stats, loading, error } = useTeamDetail(abbr);
+  const [searchParams] = useSearchParams();
+  const season = searchParams.get("season") ?? undefined;
+  const teamsUrl = `/teams${season ? `?season=${encodeURIComponent(season)}` : ""}`;
+  const { team, stats, loading, error } = useTeamDetail(abbr, season);
 
   if (loading) return <LoadingState />;
 
@@ -18,7 +21,7 @@ export default function TeamDetail() {
       <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
         <div className="text-sm text-brand">{error || "Team not found"}</div>
         <button
-          onClick={() => navigate("/teams")}
+          onClick={() => navigate(teamsUrl)}
           className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-lg
                      cursor-pointer border-none hover:opacity-90 transition-opacity"
         >
@@ -37,7 +40,7 @@ export default function TeamDetail() {
     <div className="px-6 sm:px-11 py-9 max-w-[800px] mx-auto">
       {/* Back button */}
       <button
-        onClick={() => navigate("/teams")}
+        onClick={() => navigate(teamsUrl)}
         className="flex items-center gap-1.5 text-[13px] text-muted cursor-pointer mb-7
                    bg-transparent border-none p-0 hover:text-ink transition-colors"
       >
@@ -56,7 +59,7 @@ export default function TeamDetail() {
             {team.city} {team.name}
           </div>
           <div className="text-base text-muted mt-1">
-            {team.record} · {winPct}%
+            {team.record} · {winPct}%{season ? ` · ${season} regular season` : ""}
           </div>
         </div>
       </div>

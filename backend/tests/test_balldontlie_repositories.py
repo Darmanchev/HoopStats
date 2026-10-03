@@ -87,13 +87,23 @@ async def test_new_team_uses_neutral_standings_defaults() -> None:
     assert count == 1
     team = session.added[0]
     assert isinstance(team, Team)
-    assert team.nba_id is None
+    assert team.nba_id == 1610612747
     assert team.balldontlie_id == 14
     assert team.record == "0-0"
     assert team.conference_rank is None
     assert team.last_ten is None
     assert team.streak is None
     session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_existing_team_missing_official_id_is_backfilled():
+    team = Team(abbr="GSW", nba_id=None, name="Warriors", city="Golden State", record="0-0")
+    await teams_repo.upsert_teams(SequenceSession(team), [{
+        "balldontlie_id": 10, "abbr": "GSW", "city": "Golden State",
+        "name": "Warriors", "conference": "West",
+    }])
+    assert team.nba_id == 1610612744
 
 
 def make_player(

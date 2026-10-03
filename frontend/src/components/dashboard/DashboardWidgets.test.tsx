@@ -9,6 +9,7 @@ import StandingsWidget from "./StandingsWidget";
 import TeamEfficiencyChart from "./TeamEfficiencyChart";
 import TopPlayerWidget from "./TopPlayerWidget";
 import UpcomingGamesWidget from "./UpcomingGamesWidget";
+import { formatGameTime } from "../../utils/gameTime";
 
 const bos: Team = {
   abbr: "BOS",
@@ -103,6 +104,12 @@ const playerStat: PlayerGameStat = {
 };
 
 describe("dashboard widgets", () => {
+  it("formats timestamp times in featured and upcoming game cards", () => {
+    const game = { ...scheduledGame, time: "2026-10-20T19:00:00Z", startTime: "2026-10-20T19:00:00Z" };
+    render(<><FeaturedGameWidget game={game} team1={bos} team2={lal} /><UpcomingGamesWidget games={[game]} teams={teams} /></>);
+    expect(screen.queryByText(game.time)).not.toBeInTheDocument();
+    expect(screen.getAllByText(formatGameTime(game))).toHaveLength(2);
+  });
   it("never displays a fake score for a scheduled featured game", () => {
     render(
       <FeaturedGameWidget

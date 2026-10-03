@@ -29,15 +29,14 @@ export default function StandingsWidget({ teams }: Props) {
       const leftRank = left.team.conferenceRank ?? Number.MAX_SAFE_INTEGER;
       const rightRank = right.team.conferenceRank ?? Number.MAX_SAFE_INTEGER;
       return leftRank - rightRank || right.percentage - left.percentage;
-    })
-    .slice(0, 8);
+    });
 
   return (
     <div className="bg-surface rounded-3xl p-6 shadow-[var(--shadow-card)] border border-line h-full flex flex-col">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className="font-display font-semibold text-[18px] text-ink">Standings</h2>
         <div className="flex rounded-full bg-surface-2 p-1" aria-label="Conference">
-          {(["East", "West"] as const).map((name) => (
+          {(["West", "East"] as const).map((name) => (
             <button
               key={name}
               type="button"

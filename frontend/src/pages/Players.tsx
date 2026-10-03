@@ -21,6 +21,8 @@ export default function Players() {
   const [sortBy, setSortBy] = useState<SortBy>("pts");
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const pageSize = 50;
   const minGames = 10; // минимум сыгранных игр для попадания в список
   const querySeason = searchParams.get("season");
   const selectedSeason = querySeason ?? seasons[0] ?? "";
@@ -40,18 +42,16 @@ export default function Players() {
     sortBy,
     position: positionFilter === "all" ? undefined : positionFilter,
     minGames,
-    limit: 200,
+    limit: pageSize + 1,
+    skip: page * pageSize,
+    search,
     season: hasSelectedSeason ? selectedSeason : undefined,
     enabled: !seasonsLoading && hasSelectedSeason,
   });
 
-  const filtered = players.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.teamAbbr.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = players.slice(0, pageSize);
 
-  if (seasonsLoading || teamsLoading || (hasSelectedSeason && loading)) {
+  if (seasonsLoading || teamsLoading) {
     return <LoadingState />;
   }
   if (seasonsError || error) {
@@ -87,7 +87,7 @@ export default function Players() {
           Players
         </h1>
         <p className="text-[13px] text-muted mt-1">
-          {filtered.length} players · {minGames}+ GP
+          {filtered.length} players on this page · {minGames}+ GP
         </p>
       </header>
 
@@ -96,6 +96,7 @@ export default function Players() {
           aria-label="Season"
           value={selectedSeason}
           onChange={(event) => {
+            setPage(0);
             const next = new URLSearchParams(searchParams);
             next.set("season", event.target.value);
             setSearchParams(next);
@@ -112,7 +113,8 @@ export default function Players() {
           type="text"
           placeholder="Search players..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+          maxLength={100}
           className="px-3.5 py-2 rounded-lg border border-line bg-surface text-ink text-sm w-60
                      outline-none placeholder:text-faint focus:border-brand transition-colors"
         />
@@ -121,7 +123,7 @@ export default function Players() {
           {sortOptions.map((s) => (
             <button
               key={s.key}
-              onClick={() => setSortBy(s.key)}
+              onClick={() => { setSortBy(s.key); setPage(0); }}
               className={`px-3.5 py-[7px] rounded-[7px] text-[11px] font-bold tracking-wide
                           uppercase cursor-pointer transition-colors ${
                             sortBy === s.key
@@ -138,7 +140,7 @@ export default function Players() {
           {positions.map((p) => (
             <button
               key={p.key}
-              onClick={() => setPositionFilter(p.key)}
+              onClick={() => { setPositionFilter(p.key); setPage(0); }}
               className={`px-3.5 py-[7px] rounded-[7px] text-[11px] font-bold tracking-wide
                           cursor-pointer transition-colors ${
                             positionFilter === p.key
@@ -152,7 +154,13 @@ export default function Players() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      <div className="flex gap-3 items-center mb-6">
+        <button className="px-3 py-2 border border-line rounded-lg disabled:opacity-40" disabled={loading || page === 0} onClick={() => setPage(page - 1)}>Previous</button>
+        <span>Page {page + 1}</span>
+        <button className="px-3 py-2 border border-line rounded-lg disabled:opacity-40" disabled={loading || players.length <= pageSize} onClick={() => setPage(page + 1)}>Next</button>
+      </div>
+
+      {loading ? <LoadingState /> : filtered.length === 0 ? (
         <div className="text-center py-12 text-faint">No players found</div>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3.5">
