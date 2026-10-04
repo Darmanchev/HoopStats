@@ -1,5 +1,6 @@
 import type { LiveGame, UpcomingGame, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
+import { formatGameTime } from "../../utils/gameTime";
 
 interface Props {
   game: LiveGame | UpcomingGame | null;
@@ -41,10 +42,10 @@ export default function FeaturedGameWidget({ game, team1, team2, onOpen = () => 
       </div>
 
       <div className="flex-1 flex flex-col justify-center">
-        <div className="flex items-center justify-center gap-6 mb-6">
+        <div className="flex items-center justify-center gap-3 sm:gap-6 mb-6 min-w-0">
           <TeamLogo team={team1} abbr={game.team1} size={50} />
-          <div className="font-display font-bold text-[42px] tracking-tight text-ink text-center">
-            {hasScore ? `${liveGame.score1} - ${liveGame.score2}` : game.time}
+          <div className={`min-w-0 font-display font-bold tracking-tight text-ink text-center ${hasScore ? "text-[32px] sm:text-[42px]" : "text-[22px] sm:text-[30px] leading-tight"}`}>
+            {hasScore ? `${liveGame.score1} - ${liveGame.score2}` : formatGameTime(game, false)}
           </div>
           <TeamLogo team={team2} abbr={game.team2} size={50} />
         </div>
@@ -70,15 +71,15 @@ export default function FeaturedGameWidget({ game, team1, team2, onOpen = () => 
         </div>
       </div>
 
-      <div className="mt-6">
+      {status === "live" && <div className="mt-6">
         <button
           type="button"
           onClick={() => onOpen(game.id)}
           className="w-full py-2.5 rounded-full border-2 border-brand text-brand font-semibold text-[14px] hover:bg-brand/5 transition-colors"
         >
-          {status === "live" ? "Live Stats" : "Game Details"}
+          Live Stats
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

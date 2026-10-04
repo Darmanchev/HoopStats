@@ -60,6 +60,9 @@ const live: LiveGame = {
 const player: Player = {
   id: 2544,
   nbaId: 2544,
+  balldontlieId: null,
+  apiNbaId: null,
+  season: null,
   name: "League Leader",
   teamAbbr: "LAL",
   position: "F",
@@ -78,6 +81,11 @@ const player: Player = {
 };
 
 const dashboardData = {
+  selectedSeason: undefined,
+  setSelectedSeason: vi.fn(),
+  seasonData: null,
+  sourceStatus: {},
+  importedSeasons: [],
   teams,
   upcoming: [upcoming],
   today: [live],

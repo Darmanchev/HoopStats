@@ -67,7 +67,11 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: ${MIGRATION_DATABASE_URL:-${DATABASE_URL:?DATABASE_URL is required}}
-      NBA_API_KEY: ${NBA_API_KEY:-}
+      BALLDONTLIE_API_KEY: ${BALLDONTLIE_API_KEY:-}
+      API_NBA_KEY: ${API_NBA_KEY:-}
+      CURRENT_SEASON: ${CURRENT_SEASON:-2026-27}
+      API_NBA_REQUEST_INTERVAL_SECONDS: ${API_NBA_REQUEST_INTERVAL_SECONDS:-6.2}
+      API_NBA_RATE_LIMIT_RETRY_SECONDS: ${API_NBA_RATE_LIMIT_RETRY_SECONDS:-60}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://hoopstats-redis:6379/0
     command: alembic upgrade head
@@ -130,7 +134,11 @@ services:
       DB_HOST: hoopstats-db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-hoopstats}
-      NBA_API_KEY: ${NBA_API_KEY:-}
+      BALLDONTLIE_API_KEY: ${BALLDONTLIE_API_KEY:-}
+      API_NBA_KEY: ${API_NBA_KEY:-}
+      API_NBA_REQUEST_INTERVAL_SECONDS: ${API_NBA_REQUEST_INTERVAL_SECONDS:-6.2}
+      CURRENT_SEASON: ${CURRENT_SEASON:-2026-27}
+      API_NBA_RATE_LIMIT_RETRY_SECONDS: ${API_NBA_RATE_LIMIT_RETRY_SECONDS:-60}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://hoopstats-redis:6379/0
       HTTP_PROXY: ${HTTP_PROXY:-}
@@ -182,10 +190,14 @@ services:
       DB_HOST: hoopstats-db
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-hoopstats}
-      NBA_API_KEY: ${NBA_API_KEY:-}
+      BALLDONTLIE_API_KEY: ${BALLDONTLIE_API_KEY:-}
+      API_NBA_KEY: ${API_NBA_KEY:-}
+      API_NBA_REQUEST_INTERVAL_SECONDS: ${API_NBA_REQUEST_INTERVAL_SECONDS:-6.2}
+      API_NBA_RATE_LIMIT_RETRY_SECONDS: ${API_NBA_RATE_LIMIT_RETRY_SECONDS:-60}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       REDIS_URL: redis://hoopstats-redis:6379/0
       LIVE_SYNC_MINUTES: ${LIVE_SYNC_MINUTES:-15}
+      CURRENT_SEASON: ${CURRENT_SEASON:-2026-27}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,hoopstats-db,hoopstats-redis,hoopstats-backend,hoopstats-frontend}

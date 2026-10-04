@@ -2,9 +2,15 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from unittest.mock import AsyncMock
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app import scheduler as scheduler_module
+
+
+@pytest.fixture(autouse=True)
+def mock_source_status(monkeypatch):
+    monkeypatch.setattr(scheduler_module, "record_sync_status", AsyncMock())
 
 
 class FakeSession:

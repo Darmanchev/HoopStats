@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -7,6 +8,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
+    current_season: str = "2026-27"
+
+    @field_validator("current_season")
+    @classmethod
+    def validate_current_season(cls, value: str) -> str:
+        import re
+        match = re.fullmatch(r"(\d{4})-(\d{2})", value)
+        if not match or int(match[2]) != (int(match[1]) + 1) % 100:
+            raise ValueError("CURRENT_SEASON must use consecutive YYYY-YY years")
+        return value
+
     database_url: str | None = None
     db_user: str | None = None
     db_password: str | None = None
@@ -14,7 +26,13 @@ class Settings(BaseSettings):
     db_port: int = 5432
     db_name: str = "hoopstats"
 
-    nba_api_key: str = ""
+    balldontlie_api_key: str = ""
+    balldontlie_base_url: str = "https://api.balldontlie.io/v1"
+    balldontlie_request_interval_seconds: float = Field(default=12.0, ge=12.0)
+    api_nba_key: str = ""
+    api_nba_base_url: str = "https://v2.nba.api-sports.io"
+    api_nba_request_interval_seconds: float = Field(default=6.2, ge=6.0)
+    api_nba_rate_limit_retry_seconds: float = Field(default=60.0, ge=0.0)
     secret_key: str
     redis_url: str = "redis://hoopstats-redis:6379/0"
     allowed_hosts: str = "localhost,127.0.0.1,testserver"

@@ -15,11 +15,11 @@ from ..ml.predict import predict_game
 logger = logging.getLogger(__name__)
 
 
-async def sync_predictions(db: AsyncSession) -> None:
+async def sync_predictions(db: AsyncSession) -> int:
     """Считает ML-прогнозы (win1 + текст) для всех предстоящих игр.
 
-    Требует обученную модель (backend/scripts/train_model.py). Если её нет —
-    функция мягко завершится без изменений.
+    Requires a trained model. Missing models or incomplete predictions are
+    reported to the caller so imports do not claim success.
     """
     rows = (await db.execute(select(Game))).scalars().all()
     played = [
@@ -34,10 +34,11 @@ async def sync_predictions(db: AsyncSession) -> None:
 
     if not upcoming:
         logger.info("Нет предстоящих игр для прогноза")
-        return
+        return 0
 
     state = build_state(played)
     count = 0
+    failures = 0
     for g in upcoming:
         try:
             win1, text = predict_game(state, g.team1, g.team2, g.date)
@@ -46,9 +47,13 @@ async def sync_predictions(db: AsyncSession) -> None:
             count += 1
         except FileNotFoundError as e:
             logger.warning("Прогноз пропущен: %s", e)
-            return
+            raise
         except Exception as e:
             logger.error("Прогноз %s: %s: %s", g.id, type(e).__name__, e)
+            failures += 1
 
     await db.commit()
     logger.info("Прогнозы обновлены: %d игр", count)
+    if failures:
+        raise RuntimeError(f"Predictions incomplete: {count} succeeded, {failures} failed")
+    return count

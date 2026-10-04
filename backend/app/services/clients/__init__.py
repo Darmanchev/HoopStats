@@ -1,1 +1,1 @@
-"""API-клиенты для внешних источников данных (NBA, ESPN)."""
+"""External data clients for BALLDONTLIE, the NBA, and ESPN."""

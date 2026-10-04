@@ -1,13 +1,12 @@
-"""Разовый бэкфилл позиций игроков из NBA API.
+"""Backfill positions on legacy player rows from NBA.com.
 
-LeagueDashPlayerStats (которым работает sync_players) позицию не отдаёт,
-поэтому позиция тянется отдельным запросом commonplayerinfo на каждого
-игрока. Запускать разово:
+BALLDONTLIE player profiles already include position, so new imports do not
+need this script. It remains available for older rows imported through
+``nba_api`` that have an official NBA ID but no position. Run it with:
 
     docker compose exec backend python -m scripts.backfill_positions
 
-Позиция нормализуется в одну букву (G / F / C), чтобы совпадать с фильтром
-на фронтенде и условием `Player.position == position.upper()` в роутере.
+Positions are normalized to one letter (G / F / C) to match the API filter.
 """
 import asyncio
 

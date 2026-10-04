@@ -3,21 +3,22 @@ import type { LiveGame, PlayerGameStat, UpcomingGame } from "../../types";
 interface Props {
   game?: LiveGame | UpcomingGame | null;
   players?: PlayerGameStat[];
+  error?: string;
 }
 
-export default function LiveGameStatsWidget({ game = null, players = [] }: Props) {
+export default function LiveGameStatsWidget({ game = null, players = [], error }: Props) {
   const rows = [...players].sort((left, right) => right.points - left.points).slice(0, 6);
 
   return (
     <div className="bg-surface rounded-3xl p-6 shadow-[var(--shadow-card)] border border-line h-full flex flex-col">
       <div className="mb-4">
-        <h2 className="font-display font-semibold text-[18px] text-ink leading-tight">Live Game Stats</h2>
-        <p className="text-[13px] text-muted">{game ? `(${game.team1} vs ${game.team2})` : "Current leaders"}</p>
+        <h2 className="font-display font-semibold text-[18px] text-ink leading-tight">{game && "status" in game && game.status === "final" ? "Completed Game Stats" : "Live Game Stats"}</h2>
+        <p className="text-[13px] text-muted">{game ? `(${game.team1} vs ${game.team2})` : "Waiting for today's game"}</p>
       </div>
 
       {!game || rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-faint text-sm">
-          No live box score available
+          {error ? "Game statistics could not be refreshed" : !game ? "No live or completed game today" : "Box score not imported yet"}
         </div>
       ) : (
       <div className="flex-1 overflow-x-auto">
