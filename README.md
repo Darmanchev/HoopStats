@@ -9,7 +9,7 @@ HoopStats is a full-stack NBA statistics dashboard with match predictions. I sta
 - calculates Elo ratings from historical games;
 - predicts upcoming matches with logistic regression;
 - explains a prediction using Elo, recent form, record and net rating;
-- refreshes part of the data every 12 hours.
+- refreshes live data every 15 minutes and the remaining data daily.
 
 ## Why these technologies
 
@@ -100,12 +100,12 @@ The scheduler separates synchronization by cost:
 
 | Data | Interval |
 | --- | --- |
-| Live games | 5 minutes |
-| Schedule and injuries | 6 hours |
-| Teams, players, team statistics, current-season history, and predictions | 12 hours |
+| Live games | 15 minutes |
+| Schedule and injuries | 24 hours |
+| Teams, players, team statistics, current-season history, and predictions | 24 hours |
 
 After startup, live games sync immediately, schedule and injuries sync after
-two minutes, and the larger statistics sync starts after five minutes. Jobs are
+two minutes, and the larger statistics sync starts after six minutes. Jobs are
 staggered and never run concurrently, which reduces load on the external APIs.
 
 ## Production deployment with Coolify
@@ -128,7 +128,7 @@ Redis and starts empty after Redis is recreated. `make seed` prints per-step
 counts and exits unsuccessfully if any step fails, while completing other steps.
 
 Choose the Docker Compose build pack in Coolify and set **Docker Compose
-Location** to `/compose.prod.yaml`. Set a domain for the `frontend` service on
+Location** to `/compose.prod.yaml`. Set a domain for the `hoopstats-frontend` service on
 container port `8080`. Set `APP_HOST` to that domain's hostname without a
 scheme, port, or path (for example, `stats.example.com`).
 Enable **Force HTTPS** for that domain. Coolify terminates TLS and redirects
@@ -141,7 +141,8 @@ Configure production values in Coolify instead of keeping a production
 environment file in the repository. Required variables:
 
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`;
-- `DATABASE_URL`, using the PostgreSQL owner account for migrations;
+- `DATABASE_URL`, using the PostgreSQL owner account for migrations. Use
+  `hoopstats-db` as the database host inside the Compose network;
 - `APP_DB_USER` and `APP_DB_PASSWORD`, using a separate runtime account;
 - `SECRET_KEY`, `APP_HOST`, `BALLDONTLIE_API_KEY`, and `API_NBA_KEY`.
 
@@ -173,13 +174,13 @@ rebuilds current ratings once. The scheduler runs in a separate container, so
 multiple Uvicorn workers do not duplicate periodic synchronization jobs.
 
 For the first production deployment, open the Coolify terminal for the
-`scheduler` container and import older seasons once:
+`hoopstats-scheduler` container and import older seasons once:
 
 ```bash
 python -m scripts.seed --seasons 2023-24 2024-25 2025-26
 ```
 
-Do not schedule old-season imports repeatedly. The 12-hour job refreshes only
+Do not schedule old-season imports repeatedly. The 24-hour job refreshes only
 the current season.
 
 ## Architecture

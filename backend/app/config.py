@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     database_url: str | None = None
     db_user: str | None = None
     db_password: str | None = None
-    db_host: str = "db"
+    db_host: str = "hoopstats-db"
     db_port: int = 5432
     db_name: str = "hoopstats"
 
@@ -34,13 +34,13 @@ class Settings(BaseSettings):
     api_nba_request_interval_seconds: float = Field(default=6.2, ge=6.0)
     api_nba_rate_limit_retry_seconds: float = Field(default=60.0, ge=0.0)
     secret_key: str
-    redis_url: str = "redis://redis:6379/0"
+    redis_url: str = "redis://hoopstats-redis:6379/0"
     allowed_hosts: str = "localhost,127.0.0.1,testserver"
     api_docs_enabled: bool = False
     elo_cache_ttl_seconds: int = 86_400
     teams_cache_ttl_seconds: int = 300
     live_cache_ttl_seconds: int = 300
-    live_sync_minutes: int = 5
+    live_sync_minutes: int = 15
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
     elo_rate_limit_requests: int = 10
