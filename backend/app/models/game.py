@@ -14,8 +14,8 @@ class Game(Base):
     time: Mapped[str] = mapped_column(String(50))
     venue: Mapped[str] = mapped_column(String(100))
     is_today: Mapped[bool] = mapped_column(Boolean, default=False)
-    season_type: Mapped[str] = mapped_column(String(20), default="regular")  # "regular" or "playoffs"
-    season: Mapped[str] = mapped_column(String(7), server_default="2025-26", index=True)  # "2025-26"
+    season_type: Mapped[str] = mapped_column(String(20), default="regular")  # preseason, regular or playoffs
+    season: Mapped[str] = mapped_column(String(7), index=True)  # Explicit provider season, e.g. "2026-27"
     win1: Mapped[float] = mapped_column(Float, nullable=True)
     score1: Mapped[int] = mapped_column(Integer, nullable=True)
     score2: Mapped[int] = mapped_column(Integer, nullable=True)

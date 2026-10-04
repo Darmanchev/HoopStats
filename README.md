@@ -117,6 +117,16 @@ leaders use imported player-season averages, and standings/form use completed
 regular-season games. Seasons with only one dataset show an explicit missing-data
 message for the other dataset. Partial game imports produce partial team records.
 
+The `20261004_game_seasons` migration repairs season labels and game types for
+recognizable legacy NBA game IDs, including preseason games. It preserves IDs,
+scores and player box scores, and does not modify BALLDONTLIE (`bdl:`) records
+or ambiguous IDs/dates. Preseason games can be selected separately on Schedule
+and are excluded from regular-season standings. Game inserts must now supply an
+explicit season rather than silently defaulting to `2025-26`.
+Back up the production database before redeploying: production runs this repair
+automatically through its migration service. Downgrading restores the old schema
+default but deliberately does not restore incorrect season labels.
+
 The live job matches NBA scoreboard games to local BALLDONTLIE records by home
 team, away team, and Eastern game date. It imports box scores using the official
 NBA ID and stores them under the local game ID; ambiguous matches are skipped.

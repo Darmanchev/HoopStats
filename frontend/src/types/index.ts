@@ -51,7 +51,7 @@ export interface UpcomingGame {
   date: string;
   time: string;
   venue: string;
-  seasonType: "regular" | "playoffs";
+  seasonType: "preseason" | "regular" | "playoffs";
   season: string;
   win1: number | null;
   prediction: string | null;
@@ -86,7 +86,7 @@ export interface PastGame {
   team1: string;
   team2: string;
   date: string;
-  seasonType: "regular" | "playoffs";
+  seasonType: "preseason" | "regular" | "playoffs";
   season: string;
   score1: number;
   score2: number;
