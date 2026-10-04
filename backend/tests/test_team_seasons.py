@@ -24,6 +24,8 @@ async def seed_games(db):
         game("b", "2024-25", "2025-01-02", 90, 110),
         game("c", "2024-25", "2025-01-03", 120, 110),
         game("playoff", "2024-25", "2025-05-01", 10, 100, season_type="playoffs"),
+        game("preseason", "2024-25", "2024-10-03", 129, 105, season_type="preseason"),
+        game("new-preseason", "2026-27", "2026-10-03", 129, 105, season_type="preseason"),
         game("live", "2024-25", "2025-01-04", 10, 100, status="live"),
         game("missing", "2024-25", "2025-01-04", None, None),
         game("other", "2023-24", "2024-01-01", 90, 100),

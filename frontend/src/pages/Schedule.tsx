@@ -8,7 +8,7 @@ import ScheduleCard from "../components/matches/ScheduleCard";
 import { LoadingState, ErrorState } from "../components/ui/PageState";
 
 type TypeFilter = "all" | "upcoming" | "results";
-type SeasonFilter = "all" | "regular" | "playoffs";
+type SeasonFilter = "all" | "preseason" | "regular" | "playoffs";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -39,6 +39,7 @@ function getDayLabel(dateStr: string): string {
 
 const seasonLabels: Record<string, string> = {
   all: "All",
+  preseason: "Preseason",
   regular: "Regular Season",
   playoffs: "Playoffs",
 };
@@ -132,7 +133,7 @@ export default function Schedule() {
         </div>
 
         <div className="flex gap-1 shrink-0">
-          {(["all", "regular", "playoffs"] as SeasonFilter[]).map((s) => (
+          {(["all", "preseason", "regular", "playoffs"] as SeasonFilter[]).map((s) => (
             <button
               key={s}
               onClick={() => setSeasonFilter(s)}

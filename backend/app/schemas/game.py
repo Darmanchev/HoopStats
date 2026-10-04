@@ -12,7 +12,7 @@ class GameBase(CamelModel):
     time: str
     venue: str
     season_type: str = "regular"
-    season: str = "2025-26"
+    season: str
     start_time: datetime | None = None
 
     @field_validator("team1", "team2")
@@ -32,8 +32,8 @@ class GameBase(CamelModel):
     @field_validator("season_type")
     @classmethod
     def validate_season_type(cls, v: str) -> str:
-        if v not in ("regular", "playoffs"):
-            raise ValueError("Season type must be 'regular' or 'playoffs'")
+        if v not in ("preseason", "regular", "playoffs"):
+            raise ValueError("Season type must be 'preseason', 'regular' or 'playoffs'")
         return v
 
 
