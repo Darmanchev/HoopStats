@@ -107,15 +107,15 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_380px] gap-6">
-        <div className="h-auto xl:h-[300px]">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="min-w-0 xl:min-h-[420px]">
           <UpcomingGamesWidget
             games={upcomingList}
             teams={teams}
             onPreview={(gameId) => navigate(`/match/${gameId}`)}
           />
         </div>
-        <div className="h-auto xl:h-[300px]">
+        <div className="min-w-0 xl:min-h-[420px]">
           <FeaturedGameWidget
             game={featuredGame}
             team1={featuredGame ? teams[featuredGame.team1] ?? null : null}
@@ -123,7 +123,7 @@ export default function Dashboard() {
             onOpen={(gameId) => navigate(`/match/${gameId}`)}
           />
         </div>
-        <div className="h-auto xl:h-[300px]">
+        <div className="min-w-0 xl:min-h-[420px]">
           <TopPlayerWidget
             player={topPlayer}
             season={seasonData?.season ?? undefined}
