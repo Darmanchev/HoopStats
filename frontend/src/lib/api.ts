@@ -169,14 +169,30 @@ export interface DashboardSeasonData {
 }
 
 export interface SyncSourceStatus {
-  state: "running" | "success" | "failed";
-  last_attempt: string;
+  state: "queued" | "running" | "success" | "failed";
+  last_attempt?: string;
   last_success?: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  duration_seconds?: number | null;
+  queued_at?: string;
   count?: number | null;
 }
 
 export function getDashboardSeason(season?: string): Promise<DashboardSeasonData> {
   return fetcher(`/analytics/dashboard${season ? `?season=${encodeURIComponent(season)}` : ""}`);
+}
+
+export async function retrySync(source: string, token: string): Promise<{queued: boolean}> {
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}/analytics/sync-retry`, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Sync-Token": token },
+      body: JSON.stringify({source}),
+    });
+  } catch { throw createApiError(0, "Retry could not be queued"); }
+  if (!response.ok) throw createApiError(response.status, `Retry failed (${response.status})`);
+  return response.json();
 }
 
 export function getSyncStatus(): Promise<Record<string, SyncSourceStatus>> {
@@ -226,7 +242,8 @@ export interface EvaluationReport {
   calibration?: { lower: number; upper: number; count: number; predicted: number | null; observed: number | null }[];
   games: { id: string; date: string; team1: string; team2: string; probability: number; actual: number; correct: boolean }[];
   total: number;
+  seasons?: string[]; selected_season?: string | null; season_metrics?: EvaluationMetrics | null;
 }
-export function getModelPerformance(skip = 0): Promise<EvaluationReport> {
-  return fetcher(`/analytics/model-performance?skip=${skip}&limit=20`);
+export function getModelPerformance(skip = 0, season?: string): Promise<EvaluationReport> {
+  return fetcher(`/analytics/model-performance?skip=${skip}&limit=20${season ? `&season=${encodeURIComponent(season)}` : ""}`);
 }

@@ -1,9 +1,11 @@
 """Аналитика лиги: Elo power rankings и лидеры по статистике."""
+from datetime import datetime, timezone
 import asyncio
 import json
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, Header
+from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +21,8 @@ from ..routers.players import _season_player_schema
 from ..services.clients.api_nba_normalizers import season_start_year
 from ..services.repositories.player_seasons import list_player_seasons
 from ..services.team_seasons import list_team_seasons, season_teams
-from ..services.sync_status import SYNC_STATUS_KEY
+from ..services.sync_status import (SYNC_STATUS_KEY, SYNC_SOURCES,
+    ENQUEUE_RETRY, decode_status, retry_key)
 from redis.exceptions import RedisError
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -174,21 +177,49 @@ async def get_dashboard_season(season: str | None = Query(None), db: AsyncSessio
     }
 
 
+class SyncRetryRequest(BaseModel):
+    source: str
+
+
+@router.post("/sync-retry", status_code=202)
+async def retry_sync(request: Request, body: SyncRetryRequest, x_sync_token: str = Header("")):
+    if not settings.sync_admin_token or not secrets.compare_digest(
+        x_sync_token.encode(), settings.sync_admin_token.encode()
+    ):
+        raise HTTPException(status_code=403, detail="Sync authorization required")
+    if body.source not in SYNC_SOURCES:
+        raise HTTPException(status_code=422, detail="Unknown sync source")
+    redis = request.app.state.redis
+    try:
+        result = await redis.eval(ENQUEUE_RETRY, 2, SYNC_STATUS_KEY, retry_key(body.source),
+                                  body.source, datetime.now(timezone.utc).isoformat())
+        if result == -1:
+            raise HTTPException(status_code=409, detail="Source sync already running")
+        if result == 0:
+            raise HTTPException(status_code=409, detail="Source retry already queued")
+        return {"queued": True}
+    except (RedisError, ValueError, TypeError):
+        raise HTTPException(status_code=503, detail="Source retry unavailable")
+
+
 @router.get("/sync-status")
 async def get_sync_status(request: Request):
     try:
         rows = await request.app.state.redis.hgetall(SYNC_STATUS_KEY)
-        return {name: json.loads(value) for name, value in rows.items()}
+        result = {}
+        for name, value in rows.items():
+            status = decode_status(value)
+            if status.get("state") == "queued" and not await request.app.state.redis.get(retry_key(name)):
+                status["state"] = "failed"
+            result[name] = status
+        return result
     except (RedisError, ValueError, TypeError):
         raise HTTPException(status_code=503, detail="Source update status unavailable")
 
 
 @router.get("/model-performance")
-async def get_model_performance(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+async def get_model_performance(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100), season: str | None = Query(None)):
     from ..ml.predict import MODEL_PATH
-    from ..ml.evaluation import read_report
-    report = await asyncio.to_thread(read_report, MODEL_PATH.with_name("evaluation.json"))
-    if report is None:
-        return {"available": False, "reason": "Model evaluation unavailable", "games": [], "total": 0}
-    games = report["games"]
-    return {**report, "games": games[skip:skip + limit], "total": len(games)}
+    from ..ml.performance import read_performance
+    return await asyncio.to_thread(read_performance, MODEL_PATH.with_name("evaluation.json"),
+                                   skip=skip, limit=limit, season=season)

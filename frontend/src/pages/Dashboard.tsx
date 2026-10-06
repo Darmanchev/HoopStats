@@ -1,3 +1,4 @@
+import SourceStatus from "../components/dashboard/SourceStatus";
 import FavoritesWidget from "../components/dashboard/FavoritesWidget";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -89,15 +90,7 @@ export default function Dashboard() {
         {seasonData?.season && <span className="text-xs text-muted">{seasonData.season} · records based on imported games</span>}
       </div>
 
-      {Object.entries(sourceStatus ?? {}).length > 0 && <details className="mb-5 text-xs text-muted">
-        <summary className="cursor-pointer">Source update status</summary>
-        <div className="mt-2 flex flex-col gap-1">
-          {Object.entries(sourceStatus).map(([name, status]) => <p key={name}>
-            {name.replace(/^sync_/, "").replaceAll("_", " ")}: {status.state === "failed" ? "Update failed" : status.state === "running" ? "Updating" : "Updated"}
-            {status.last_success ? ` · Last successful import ${new Date(status.last_success).toLocaleString()}` : " · No successful import recorded"}
-          </p>)}
-        </div>
-      </details>}
+      <SourceStatus statuses={sourceStatus ?? {}} unavailable={!!errors.sourceStatus} onQueued={refresh} />
 
       {hasRefreshWarning && (
         <div

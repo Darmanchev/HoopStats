@@ -5,7 +5,7 @@ COMPOSE = docker compose \
 .PHONY: up down clean logs migrate seed seed-seasons seed-players train status
 
 up:
-	$(COMPOSE) up -d --build
+	$(COMPOSE) up -d --build --remove-orphans
 
 down:
 	$(COMPOSE) down

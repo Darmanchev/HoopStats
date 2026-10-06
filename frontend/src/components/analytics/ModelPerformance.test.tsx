@@ -1,0 +1,20 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { expect, it, vi } from "vitest";
+import { getModelPerformance } from "../../lib/api";
+import ModelPerformance from "./ModelPerformance";
+vi.mock("../../lib/api",()=>({getModelPerformance:vi.fn()}));
+it("filters report game seasons and resets pagination while keeping full metrics identified",async()=>{
+ const metrics={accuracy:.7,log_loss:.6,brier:.2,auc:.8};
+ vi.mocked(getModelPerformance).mockImplementation(async(_skip,season)=>({available:true,test_season:"2024-25",metrics,games:[{id:"1",date:"2025-01-01",team1:"BOS",team2:"LAL",probability:.7,actual:0,correct:false}],total:40,seasons:["2024-25","2023-24"],selected_season:season ?? null,season_metrics:season ? metrics : null}));
+ render(<MemoryRouter><ModelPerformance/></MemoryRouter>);
+ await screen.findByText("Held-out game results");
+ await userEvent.click(screen.getByRole("button",{name:"Next"}));
+ await waitFor(()=>expect(getModelPerformance).toHaveBeenCalledWith(20,undefined));
+ await userEvent.selectOptions(screen.getByLabelText("Evaluation season"),"2023-24");
+ await waitFor(()=>expect(getModelPerformance).toHaveBeenLastCalledWith(0,"2023-24"));
+ expect(await screen.findByText(/Held-out report metrics/)).toBeInTheDocument();
+ expect(screen.getByText(/40 evaluated games in 2023-24/)).toBeInTheDocument();
+ expect(screen.getByRole("columnheader",{name:"Predicted winner"})).toBeInTheDocument();
+});

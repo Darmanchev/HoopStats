@@ -80,14 +80,15 @@ const nav = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-[100px] shrink-0 bg-surface shadow-[var(--shadow-card)] mx-4 my-6 rounded-[20px] flex flex-col items-center py-6 h-[calc(100vh-120px)] border border-line">
-      <nav className="flex-1 flex flex-col items-center gap-4 w-full px-3">
+    <aside className="w-full md:w-[100px] shrink-0 bg-surface shadow-[var(--shadow-card)] md:mx-4 md:my-6 md:rounded-[20px] flex items-center py-2 md:py-6 md:h-[calc(100dvh-120px)] border border-line overflow-x-auto md:overflow-y-auto">
+      <nav aria-label="Main navigation" className="flex-1 flex md:flex-col items-center gap-1 md:gap-4 w-full px-2 md:px-3">
         {nav.map((item) => (
           <NavLink
             key={item.id}
             to={item.to}
+            end={item.to === "/"}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center w-full h-[80px] rounded-2xl transition-all duration-200 ${
+              `flex flex-col items-center justify-center min-w-[64px] flex-1 md:w-full h-[60px] md:h-[80px] rounded-2xl transition-all duration-200 ${
                 isActive
                   ? "bg-brand/10 text-brand"
                   : "text-muted hover:bg-hover hover:text-ink"

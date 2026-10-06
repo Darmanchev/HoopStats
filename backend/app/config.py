@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     api_nba_request_interval_seconds: float = Field(default=6.2, ge=6.0)
     api_nba_rate_limit_retry_seconds: float = Field(default=60.0, ge=0.0)
     secret_key: str
+    sync_admin_token: str = ""
     redis_url: str = "redis://hoopstats-redis:6379/0"
     allowed_hosts: str = "localhost,127.0.0.1,testserver"
     api_docs_enabled: bool = False

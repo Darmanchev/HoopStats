@@ -12,6 +12,7 @@ from app.models.game import Game
 from app.ml.train import train
 from app.ml.features import verified_home
 from app.services.predictions import sync_predictions
+from app.services import sync_status
 
 
 async def load_played_games() -> list[dict]:
@@ -36,8 +37,15 @@ async def load_played_games() -> list[dict]:
 
 
 async def refresh_predictions():
-    async with SessionLocal() as db:
-        return await sync_predictions(db)
+    await sync_status.record_sync_status("sync_predictions", "running")
+    try:
+        async with SessionLocal() as db:
+            count = await sync_predictions(db)
+    except Exception:
+        await sync_status.record_sync_status("sync_predictions", "failed")
+        raise
+    await sync_status.record_sync_status("sync_predictions", "success", count)
+    return count
 
 
 async def main() -> None:

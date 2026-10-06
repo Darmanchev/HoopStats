@@ -34,16 +34,25 @@ def train(games: list[dict]) -> dict:
     test_season = sorted(set(seasons))[-1]
     train_indices = [i for i, season in enumerate(seasons) if season != test_season]
     test_indices = [i for i, season in enumerate(seasons) if season == test_season]
-    report = unavailable_report(test_season, len(train_indices), len(test_indices))
-    if train_indices and test_indices and len({y[i] for i in train_indices}) == 2:
-        evaluator = _make_model()
-        fit_symmetric(evaluator, [x[i] for i in train_indices], [y[i] for i in train_indices])
-        report = build_report(evaluator, [x[i] for i in test_indices], [y[i] for i in test_indices],
-            [metadata[i] for i in test_indices], len(train_indices), test_season)
+    reports = {}
+    for season in sorted(set(seasons)):
+        earlier = [i for i, value in enumerate(seasons) if value < season]
+        held_out = [i for i, value in enumerate(seasons) if value == season]
+        if earlier and held_out and len({y[i] for i in earlier}) == 2:
+            evaluator = _make_model()
+            fit_symmetric(evaluator, [x[i] for i in earlier], [y[i] for i in earlier])
+            reports[season] = build_report(
+                evaluator, [x[i] for i in held_out], [y[i] for i in held_out],
+                [metadata[i] for i in held_out], len(earlier), season,
+            )
+    report = reports.get(test_season) or unavailable_report(test_season, len(train_indices), len(test_indices))
     model = _make_model()
     fit_symmetric(model, x, y)
     bundle = {"model": model, "features": FEATURE_NAMES, "feature_version": FEATURE_VERSION, "trained_at": report["trained_at"]}
     atomic_write(MODEL_PATH, lambda file: joblib.dump(bundle, file))
+    for season, season_report in reports.items():
+        atomic_write(MODEL_PATH.with_name(f"evaluation-{season}.json"),
+            lambda file, value=season_report: Path(file).write_text(json.dumps(value, allow_nan=False)))
     atomic_write(MODEL_PATH.with_name("evaluation.json"), lambda file: Path(file).write_text(json.dumps(report, allow_nan=False)))
     return {"test_season": test_season, "n_train": len(train_indices), "n_test": len(test_indices),
         "n_total": len(x), "evaluation_available": report["available"], **(report["metrics"] or {}), "model_path": str(MODEL_PATH)}

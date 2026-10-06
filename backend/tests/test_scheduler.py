@@ -11,6 +11,7 @@ from app import scheduler as scheduler_module
 @pytest.fixture(autouse=True)
 def mock_source_status(monkeypatch):
     monkeypatch.setattr(scheduler_module, "record_sync_status", AsyncMock())
+    monkeypatch.setattr(scheduler_module, "clear_pending_retry", AsyncMock())
 
 
 class FakeSession:
@@ -43,6 +44,7 @@ def test_configure_scheduler_registers_staggered_jobs() -> None:
         "live-games",
         "schedule-and-injuries",
         "statistics",
+        "sync-retries",
     }
     assert jobs["live-games"].func is scheduler_module.sync_live_job
     assert jobs["live-games"].trigger.interval == timedelta(minutes=15)

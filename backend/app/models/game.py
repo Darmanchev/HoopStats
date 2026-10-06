@@ -1,11 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import String, Integer, Float, Boolean, ForeignKey, DateTime, JSON
+from sqlalchemy import String, Integer, Float, Boolean, ForeignKey, DateTime, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 class Game(Base):
     __tablename__ = "games"
+    __table_args__ = (
+        Index("ix_games_season_status_date", "season", "status", "date"),
+        Index("ix_games_status_start_time", "status", "start_time"),
+    )
 
     id: Mapped[str] = mapped_column(String(20), primary_key=True)
     team1: Mapped[str | None] = mapped_column(String(5), ForeignKey("teams.abbr", ondelete="SET NULL"), nullable=True)

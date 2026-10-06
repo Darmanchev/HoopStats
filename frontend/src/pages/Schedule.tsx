@@ -40,7 +40,7 @@ export default function Schedule() {
   const cls = "px-3 py-2 rounded-lg border border-line bg-surface text-ink text-sm";
   if (seasonsError) return <div className="p-8" role="alert">{seasonsError} <button onClick={retrySeasons}>Retry</button></div>;
   if (!seasonsLoading && !seasons.length) return <div className="p-8">No game seasons imported</div>;
-  return <div className="px-5 sm:px-10 py-8 max-w-[1100px] mx-auto">
+  return <div className="px-0 sm:px-10 py-8 max-w-[1100px] mx-auto">
     <h1 className="font-display font-extrabold text-2xl mb-2">Schedule</h1>
     <p className="text-muted mb-5">{season === "all" ? "All seasons" : season || "Loading seasons…"} · {result.data?.total ?? 0} games</p>
     <div className="flex flex-wrap gap-2 mb-5">

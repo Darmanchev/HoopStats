@@ -59,6 +59,7 @@ services:
       API_NBA_REQUEST_INTERVAL_SECONDS: ${API_NBA_REQUEST_INTERVAL_SECONDS:-6.2}
       API_NBA_RATE_LIMIT_RETRY_SECONDS: ${API_NBA_RATE_LIMIT_RETRY_SECONDS:-60}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      SYNC_ADMIN_TOKEN: ${SYNC_ADMIN_TOKEN:-}
       REDIS_URL: redis://hoopstats-redis:6379/0
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,testserver}
       API_DOCS_ENABLED: ${API_DOCS_ENABLED:-true}
@@ -104,6 +105,8 @@ services:
         condition: service_healthy
 
   hoopstats-scheduler:
+    volumes:
+      - model_artifacts:/app/artifacts
     container_name: hoopstats-scheduler
     build:
       context: .

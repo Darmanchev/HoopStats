@@ -284,3 +284,42 @@ python -m scripts.train_model
 Run that command in the scheduler container after historical imports. It refreshes
 upcoming predictions after training. Retraining and historical imports are manual;
 viewing Analytics does not train a model or spend provider quota.
+
+## Import monitoring and release checks
+
+The dashboard distinguishes browser checks from the last successful imports of
+scores, player statistics, and predictions. Failed imports keep their previous
+successful timestamp and show a retry action. Execution start, finish, and duration
+are available in source status; a browser refresh does not import provider data.
+
+To enable manual retries, set a strong `SYNC_ADMIN_TOKEN` in `.env` and recreate the
+backend (`make up`). Leave it empty to disable retries. Enter that token in the
+operator password form when retrying a failed import; it is never saved in browser
+storage. Production tokens should only be sent over HTTPS. Retry requests accept
+only known sources, reject duplicate queued/running requests, and run through the
+single scheduler. The scheduler polls every 15 seconds and waits while another
+import runs. Queued requests remain pending until consumed, even during long imports.
+Redis restarts clear pending requests and status because its storage is ephemeral. Imports may run for a long time, so running status is
+not automatically declared failed; inspect its start time and scheduler logs.
+
+`make up` removes obsolete containers belonging to the development Compose project
+without deleting named volumes. Development backend and scheduler share
+`model_artifacts`; after `make train`, both use the same model and evaluation files.
+Do not use `make clean` to repair startup failures: it deletes database volumes.
+
+Training publishes `evaluation-YYYY-YY.json` for every eligible holdout season.
+Each evaluation trains only on earlier seasons; the latest report remains at
+`evaluation.json`. Analytics can select a report season and paginate its game
+results. These are historical holdout results, not tracking of deployed forecasts.
+Retrain to populate older reports. Missing or invalid reports show an unavailable
+state instead of breaking analytics.
+
+Responses include `Server-Timing: app;dur=...` for measuring backend request time
+in browser developer tools. The schedule migration adds indexes matching season,
+status, date ordering and upcoming-game status/start-time lookups. Existing caches
+continue to be invalidated after imports.
+
+GitHub Actions runs backend and frontend tests, frontend lint/build, both Compose
+validations, release image builds, and PostgreSQL migrations from an empty database.
+It also rolls back and reapplies the latest migration. Checks run for pull requests
+and pushes to `main` or `develop`; the workflow does not deploy automatically.

@@ -21,7 +21,9 @@ from app.services import (
     sync_teams,
 )
 from app.services.live_box_scores import sync_box_scores
-from app.services.sync_status import record_sync_status
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
+from app.services.sync_status import record_sync_status, SYNC_SOURCES, retry_key
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +50,8 @@ async def run_steps(name: str, *steps: SyncStep) -> None:
             for step in steps:
                 try:
                     await record_sync_status(step.__name__, "running")
+                    # A scheduled run also fulfils a pending manual retry.
+                    await clear_pending_retry(step.__name__)
                     count = await step(db)
                     await record_sync_status(step.__name__, "success", count)
                 except Exception:
@@ -60,6 +64,32 @@ async def run_steps(name: str, *steps: SyncStep) -> None:
                     )
 
         logger.info("Finished %s sync", name)
+
+
+async def clear_pending_retry(source: str) -> None:
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        await redis.delete(retry_key(source))
+    except RedisError:
+        logger.warning("Unable to clear queued retry for %s", source)
+    finally:
+        await redis.aclose()
+
+
+async def sync_retries_job() -> None:
+    if sync_lock.locked():
+        return
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        for source in SYNC_SOURCES:
+            if sync_lock.locked():
+                return
+            if await redis.get(retry_key(source)):
+                await run_steps(f"manual retry {source}", globals()[source])
+    except RedisError:
+        logger.warning("Unable to read queued synchronization retries")
+    finally:
+        await redis.aclose()
 
 
 async def sync_live_job() -> None:
@@ -96,6 +126,11 @@ def configure_scheduler(
 ) -> None:
     """Register staggered synchronization jobs on ``target``."""
     first_run = now or datetime.now(timezone.utc)
+    target.add_job(
+        sync_retries_job, trigger=IntervalTrigger(seconds=15),
+        id="sync-retries", next_run_time=first_run + timedelta(seconds=15),
+        max_instances=1, coalesce=True, misfire_grace_time=30, replace_existing=True,
+    )
 
     target.add_job(
         sync_live_job,

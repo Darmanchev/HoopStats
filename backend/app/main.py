@@ -7,6 +7,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import settings
 from .rate_limit import RateLimitMiddleware
+from .timing import RequestTimingMiddleware
 from .routers import analytics, games, injuries, players, teams, search, player_games
 
 
@@ -29,6 +30,7 @@ app = FastAPI(
 )
 
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestTimingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
