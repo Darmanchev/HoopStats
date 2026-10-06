@@ -116,6 +116,8 @@ services:
     logging: *default-logging
 
   hoopstats-backend:
+    volumes:
+      - model_artifacts:/app/artifacts:ro
     container_name: hoopstats-backend
     build:
       context: .
@@ -178,6 +180,8 @@ services:
       - no-new-privileges:true
 
   hoopstats-scheduler:
+    volumes:
+      - model_artifacts:/app/artifacts
     container_name: hoopstats-scheduler
     build:
       context: .
@@ -251,3 +255,4 @@ services:
 
 volumes:
   postgres_data:
+  model_artifacts:

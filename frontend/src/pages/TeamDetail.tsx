@@ -1,3 +1,4 @@
+import FavoriteButton from "../components/ui/FavoriteButton";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import TeamLogo from "../components/teams/TeamLogo";
 import FormBadge from "../components/teams/FormBadge";
@@ -64,6 +65,7 @@ export default function TeamDetail() {
         </div>
       </div>
 
+      <div className="mb-5"><FavoriteButton team={team.abbr} name={`${team.city} ${team.name}`}/></div>
       {/* Form & sparkline */}
       {stats && stats.form.length > 0 ? (
         <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-xl px-7 py-6 mb-5">

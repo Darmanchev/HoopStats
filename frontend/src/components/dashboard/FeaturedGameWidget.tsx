@@ -57,15 +57,16 @@ export default function FeaturedGameWidget({ game, team1, team2, onOpen = () => 
             </span>
             <span className="text-[12px] font-bold text-ink">{statusLabel}</span>
           </div>
-          <div className="h-2 w-full bg-surface-2 rounded-full overflow-hidden">
+          {game.win1 != null && <div className="h-2 w-full bg-surface-2 rounded-full overflow-hidden">
             <div
               className="h-full bg-brand transition-all"
-              style={{ width: `${game.win1 ?? 50}%` }}
+              style={{ width: `${game.win1}%` }}
             />
-          </div>
-          {status === "scheduled" && game.prediction && (
+          </div>}
+          {status === "scheduled" && game.win1 == null && <p className="text-muted text-sm">Prediction unavailable</p>}
+          {status === "scheduled" && game.win1 != null && game.prediction && (
             <p className="mt-2 text-center text-[12px] text-muted">
-              Prediction: {game.prediction} · {game.team1} {game.win1 ?? 50}% win probability
+              Prediction: {game.prediction} · {game.team1} {game.win1}% win probability
             </p>
           )}
         </div>

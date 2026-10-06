@@ -8,7 +8,7 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..cache import ELO_CACHE_KEY, ELO_LOCK_KEY
+from ..cache import ELO_CACHE_KEY
 from ..config import settings
 from ..database import get_db
 from ..models.game import Game
@@ -35,23 +35,30 @@ return 0
 
 
 @router.get("/elo")
-async def get_elo(request: Request, db: AsyncSession = Depends(get_db)):
+async def get_elo(request: Request, db: AsyncSession = Depends(get_db), season: str | None = None):
     """Power rankings — все команды, отсортированные по Elo-рейтингу."""
     from ..ml.features import build_state
 
+    if season is not None:
+        try:
+            season_start_year(season)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    cache_key = f"{ELO_CACHE_KEY}:{season}" if season else ELO_CACHE_KEY
+    lock_key = f"{cache_key}:lock"
     redis: Redis = request.app.state.redis
-    cached = await redis.get(ELO_CACHE_KEY)
+    cached = await redis.get(cache_key)
     if cached:
         return json.loads(cached)
 
     lock_token = secrets.token_urlsafe(24)
-    has_lock = await redis.set(ELO_LOCK_KEY, lock_token, ex=30, nx=True)
+    has_lock = await redis.set(lock_key, lock_token, ex=30, nx=True)
     if not has_lock:
         # Another worker is rebuilding the shared cache. Do not duplicate the
         # expensive work; briefly wait for its result.
         for _ in range(30):
             await asyncio.sleep(0.1)
-            cached = await redis.get(ELO_CACHE_KEY)
+            cached = await redis.get(cache_key)
             if cached:
                 return json.loads(cached)
         raise HTTPException(
@@ -70,8 +77,12 @@ async def get_elo(request: Request, db: AsyncSession = Depends(get_db)):
                     Game.score1,
                     Game.score2,
                     Game.season,
+                    Game.season_type,
                 ).where(
                     Game.status == "final",
+                    Game.season_type.in_(["regular", "playoffs"]),
+                    Game.score1 != Game.score2,
+                    *([Game.season <= season] if season else []),
                     Game.score1.is_not(None),
                     Game.score2.is_not(None),
                     Game.team1.is_not(None),
@@ -87,9 +98,12 @@ async def get_elo(request: Request, db: AsyncSession = Depends(get_db)):
                 "score1": row.score1,
                 "score2": row.score2,
                 "season": row.season,
+                "season_type": row.season_type,
             }
             for row in rows
         ]
+        if season and not any(g["season"] == season for g in played):
+            return []
         state = await asyncio.to_thread(build_state, played)
         ranking = sorted(state.elo.items(), key=lambda kv: kv[1], reverse=True)
         response = [
@@ -97,13 +111,13 @@ async def get_elo(request: Request, db: AsyncSession = Depends(get_db)):
             for abbr, elo in ranking
         ]
         await redis.set(
-            ELO_CACHE_KEY,
+            cache_key,
             json.dumps(response),
             ex=settings.elo_cache_ttl_seconds,
         )
         return response
     finally:
-        await redis.eval(_RELEASE_LOCK, 1, ELO_LOCK_KEY, lock_token)
+        await redis.eval(_RELEASE_LOCK, 1, lock_key, lock_token)
 
 
 @router.get("/leaders", response_model=dict[str, list[PlayerSchema]])
@@ -139,9 +153,10 @@ async def get_leaders(season: str | None = Query(None), db: AsyncSession = Depen
 async def get_dashboard_season(season: str | None = Query(None), db: AsyncSession = Depends(get_db)):
     player_seasons = await list_player_seasons(db)
     team_seasons = await list_team_seasons(db)
-    seasons = sorted(set(player_seasons + team_seasons), reverse=True)
+    game_seasons = list((await db.execute(select(Game.season).distinct().order_by(Game.season.desc()))).scalars().all())
+    seasons = sorted(set(player_seasons + team_seasons + game_seasons), reverse=True)
     complete_seasons = sorted(set(player_seasons).intersection(team_seasons), reverse=True)
-    default_seasons = complete_seasons or player_seasons or team_seasons
+    default_seasons = complete_seasons or player_seasons or team_seasons or game_seasons
     selected = season or (default_seasons[0] if default_seasons else None)
     if selected:
         try:
@@ -166,3 +181,14 @@ async def get_sync_status(request: Request):
         return {name: json.loads(value) for name, value in rows.items()}
     except (RedisError, ValueError, TypeError):
         raise HTTPException(status_code=503, detail="Source update status unavailable")
+
+
+@router.get("/model-performance")
+async def get_model_performance(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+    from ..ml.predict import MODEL_PATH
+    from ..ml.evaluation import read_report
+    report = await asyncio.to_thread(read_report, MODEL_PATH.with_name("evaluation.json"))
+    if report is None:
+        return {"available": False, "reason": "Model evaluation unavailable", "games": [], "total": 0}
+    games = report["games"]
+    return {**report, "games": games[skip:skip + limit], "total": len(games)}

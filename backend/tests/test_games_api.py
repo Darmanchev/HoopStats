@@ -109,8 +109,10 @@ async def test_match_detail_returns_prediction_and_team_details() -> None:
         "status": "scheduled",
         "statusText": "",
         "startTime": None,
+        "homeAbbr": None,
         "period": None,
         "clock": None,
+        "periodScores": None,
         "score1": None,
         "score2": None,
         "homeTeam": {

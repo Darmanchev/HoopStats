@@ -1,3 +1,4 @@
+import ModelPerformance from "../components/analytics/ModelPerformance";
 import type { Player } from "../types";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { useTeams } from "../hooks/useTeams";
@@ -65,7 +66,7 @@ function LeaderCard({
 }
 
 export default function Analytics() {
-  const { elo, leaders, loading, error } = useAnalytics();
+  const { elo, leaders, loading, error, season, seasons, setSelectedSeason, eloError, leadersError, retryElo, retryLeaders } = useAnalytics();
   const { teams, loading: teamsLoading } = useTeams();
 
   if (loading || teamsLoading) return <LoadingState />;
@@ -82,10 +83,11 @@ export default function Analytics() {
           Analytics
         </h1>
         <p className="text-[13px] text-muted mt-1">
-          League insights · 2025–26 season
+          League insights · {season ? `${season.replace("-", "–")} season` : "No imported seasons"}
         </p>
       </header>
 
+      <label className="block mb-5">Season <select aria-label="Season" className="border border-line bg-surface rounded-lg p-2" value={season ?? ""} onChange={event => setSelectedSeason(event.target.value)}>{!seasons.length && <option value="">No imported seasons</option>}{seasons.map(s => <option key={s}>{s}</option>)}</select></label>
       {/* Power Rankings — Elo */}
       <section className="mb-10">
         <h2 className="font-display font-bold text-base tracking-wide text-faint uppercase mb-3.5">
@@ -93,6 +95,7 @@ export default function Analytics() {
         </h2>
         <div className="bg-surface border border-line rounded-2xl overflow-hidden
                         shadow-[var(--shadow-card)]">
+          {eloError ? <p role="alert" className="p-5">{eloError} <button onClick={retryElo}>Retry</button></p> : !elo.length && <p className="p-5 text-muted">No completed games imported for this season</p>}
           {elo.map((e, i) => {
             const t = teams[e.teamAbbr];
             const frac = (e.elo - minElo) / span;
@@ -128,6 +131,7 @@ export default function Analytics() {
         <h2 className="font-display font-bold text-base tracking-wide text-faint uppercase mb-3.5">
           League Leaders
         </h2>
+        {leadersError ? <p role="alert">{leadersError} <button onClick={retryLeaders}>Retry</button></p> : !Object.values(leaders).some(list => list.length) && <p className="text-muted mb-4">No player leaders available for this season</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {LEADER_CARDS.map((c) => (
             <LeaderCard
@@ -141,6 +145,7 @@ export default function Analytics() {
           ))}
         </div>
       </section>
+      <ModelPerformance/>
     </div>
   );
 }

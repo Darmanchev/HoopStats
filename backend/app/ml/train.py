@@ -1,72 +1,49 @@
-"""Обучение модели прогнозирования исходов матчей.
-
-Модель — логистическая регрессия. Зависимость Elo→вероятность победы по
-своей природе логистическая, поэтому LR здесь точнее градиентного бустинга
-(бустинг на этих признаках переобучается). Признаки масштабируются
-StandardScaler — у них очень разный масштаб (d_elo ~±300, d_winpct ~±0.5).
-
-Оценка — на последнем сезоне (out-of-sample по времени).
-"""
+"""Train a versioned logistic model and publish chronological evaluation."""
+import json
 from pathlib import Path
-
+import os
 import joblib
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from .features import FEATURE_NAMES, build_training_rows
+from .features import FEATURE_NAMES, FEATURE_VERSION, build_training_rows
+from .evaluation import atomic_write, build_report, unavailable_report
 
-MODEL_PATH = Path(__file__).parent / "model.joblib"
+MODEL_PATH = Path(os.environ.get("HOOPSTATS_MODEL_DIR", str(Path(__file__).parent))) / "model.joblib"
 
 
 def _make_model():
-    """Пайплайн: масштабирование признаков + логистическая регрессия."""
-    return make_pipeline(
-        StandardScaler(),
-        LogisticRegression(C=1.0, max_iter=1000),
-    )
+    return make_pipeline(StandardScaler(), LogisticRegression(C=1.0, max_iter=1000))
+
+
+def fit_symmetric(model, x, y):
+    # All provider rows are away-first. Mirroring gives the home indicator
+    # both signs and ensures swapping the teams complements the prediction.
+    mirrored = [[-value for value in row] for row in x]
+    model.fit(x + mirrored, y + [1 - outcome for outcome in y])
+    return model
 
 
 def train(games: list[dict]) -> dict:
-    """Обучает модель на сыгранных играх, сохраняет в model.joblib.
-
-    Возвращает метрики на тесте (последний сезон).
-    """
-    X, y, seasons = build_training_rows(games)
-    if len(X) < 200:
-        raise ValueError(f"Слишком мало данных для обучения: {len(X)} строк")
-
+    x, y, seasons, metadata = build_training_rows(games, with_metadata=True)
+    if len(x) < 200:
+        raise ValueError(f"At least 200 eligible training rows required; found {len(x)}")
+    if len(set(y)) < 2:
+        raise ValueError("Training requires both winning and losing outcomes")
     test_season = sorted(set(seasons))[-1]
-    Xtr = [x for x, s in zip(X, seasons) if s != test_season]
-    ytr = [v for v, s in zip(y, seasons) if s != test_season]
-    Xte = [x for x, s in zip(X, seasons) if s == test_season]
-    yte = [v for v, s in zip(y, seasons) if s == test_season]
-
-    # --- оценка: учим на прошлых сезонах, проверяем на последнем ---
-    metrics: dict = {"test_season": test_season, "n_train": len(Xtr), "n_test": len(Xte)}
-    if Xtr and Xte:
+    train_indices = [i for i, season in enumerate(seasons) if season != test_season]
+    test_indices = [i for i, season in enumerate(seasons) if season == test_season]
+    report = unavailable_report(test_season, len(train_indices), len(test_indices))
+    if train_indices and test_indices and len({y[i] for i in train_indices}) == 2:
         evaluator = _make_model()
-        evaluator.fit(Xtr, ytr)
-        proba = evaluator.predict_proba(Xte)[:, 1]
-        preds = [int(p >= 0.5) for p in proba]
-        # бейзлайны — простое правило "кто сильнее по одному признаку"
-        winpct_idx = FEATURE_NAMES.index("d_winpct")
-        elo_idx = FEATURE_NAMES.index("d_elo")
-        base_winpct = [int(x[winpct_idx] > 0) for x in Xte]
-        base_elo = [int(x[elo_idx] > 0) for x in Xte]
-        metrics.update(
-            accuracy=round(accuracy_score(yte, preds), 4),
-            log_loss=round(log_loss(yte, proba), 4),
-            auc=round(roc_auc_score(yte, proba), 4),
-            baseline_winpct=round(accuracy_score(yte, base_winpct), 4),
-            baseline_elo=round(accuracy_score(yte, base_elo), 4),
-        )
-
-    # --- финальная модель: на ВСЕХ данных, для прода ---
+        fit_symmetric(evaluator, [x[i] for i in train_indices], [y[i] for i in train_indices])
+        report = build_report(evaluator, [x[i] for i in test_indices], [y[i] for i in test_indices],
+            [metadata[i] for i in test_indices], len(train_indices), test_season)
     model = _make_model()
-    model.fit(X, y)
-    joblib.dump({"model": model, "features": FEATURE_NAMES}, MODEL_PATH)
-    metrics["model_path"] = str(MODEL_PATH)
-    metrics["n_total"] = len(X)
-    return metrics
+    fit_symmetric(model, x, y)
+    bundle = {"model": model, "features": FEATURE_NAMES, "feature_version": FEATURE_VERSION, "trained_at": report["trained_at"]}
+    atomic_write(MODEL_PATH, lambda file: joblib.dump(bundle, file))
+    atomic_write(MODEL_PATH.with_name("evaluation.json"), lambda file: Path(file).write_text(json.dumps(report, allow_nan=False)))
+    return {"test_season": test_season, "n_train": len(train_indices), "n_test": len(test_indices),
+        "n_total": len(x), "evaluation_available": report["available"], **(report["metrics"] or {}), "model_path": str(MODEL_PATH)}

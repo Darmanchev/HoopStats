@@ -1,5 +1,6 @@
+import { useFavorites } from "../hooks/useFavorites";
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { usePlayerSeasons } from "../hooks/usePlayerSeasons";
 import { usePlayers } from "../hooks/usePlayers";
 import { useTeams } from "../hooks/useTeams";
@@ -11,6 +12,8 @@ type PositionFilter = "all" | "G" | "F" | "C";
 
 export default function Players() {
   const navigate = useNavigate();
+  const favorites = useFavorites();
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { teams, loading: teamsLoading } = useTeams();
   const {
@@ -21,7 +24,10 @@ export default function Players() {
   const [sortBy, setSortBy] = useState<SortBy>("pts");
   const [positionFilter, setPositionFilter] = useState<PositionFilter>("all");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(0);
+  const [paging, setPaging] = useState({page:0,ids:""});
+  const favoriteIds = favorites.players.join(",");
+  const page = favoritesOnly && paging.ids !== favoriteIds ? 0 : paging.page;
+  const setPage = (value:number) => setPaging({page:value,ids:favoriteIds});
   const pageSize = 50;
   const minGames = 10; // минимум сыгранных игр для попадания в список
   const querySeason = searchParams.get("season");
@@ -45,8 +51,9 @@ export default function Players() {
     limit: pageSize + 1,
     skip: page * pageSize,
     search,
+    ids: favoritesOnly ? favorites.players.join(",") : undefined,
     season: hasSelectedSeason ? selectedSeason : undefined,
-    enabled: !seasonsLoading && hasSelectedSeason,
+    enabled: !seasonsLoading && hasSelectedSeason && (!favoritesOnly || favorites.players.length > 0),
   });
 
   const filtered = players.slice(0, pageSize);
@@ -92,6 +99,8 @@ export default function Players() {
       </header>
 
       <div className="flex gap-3 mb-6 items-center flex-wrap">
+        <Link className="border border-line rounded-lg p-2" to={`/players/compare?season=${encodeURIComponent(selectedSeason)}`}>Compare players</Link>
+        <button className="border border-line rounded-lg p-2" aria-pressed={favoritesOnly} onClick={() => {setFavoritesOnly(value => !value);setPage(0);}}>Favorite players</button>
         <select
           aria-label="Season"
           value={selectedSeason}

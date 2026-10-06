@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import String, Integer, Float, Boolean, ForeignKey, DateTime
+from sqlalchemy import String, Integer, Float, Boolean, ForeignKey, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
@@ -30,6 +30,8 @@ class Game(Base):
         default="",
         server_default="",
     )
+    home_abbr: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    period_scores: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
     period: Mapped[int | None] = mapped_column(Integer, nullable=True)
     clock: Mapped[str | None] = mapped_column(String(30), nullable=True)
     start_time: Mapped[datetime | None] = mapped_column(
@@ -38,6 +40,6 @@ class Game(Base):
         index=True,
     )
 
-# relationship
-    home_team = relationship("Team", back_populates="home_games", foreign_keys=[team1])
-    away_team = relationship("Team", back_populates="away_games", foreign_keys=[team2])
+# team1 is away; team2 is home in all normalized imports.
+    home_team = relationship("Team", back_populates="home_games", foreign_keys=[team2])
+    away_team = relationship("Team", back_populates="away_games", foreign_keys=[team1])

@@ -145,7 +145,7 @@ describe("Players season selection", () => {
   it("preserves the season when opening a player", async () => {
     renderPlayers("/players?season=2025-26");
 
-    await userEvent.click(await screen.findByRole("button", { name: /Stephen Curry/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Open player Stephen Curry/i }));
 
     expect(screen.getByTestId("location")).toHaveTextContent(
       "/players/1?season=2025-26",

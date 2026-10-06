@@ -1,240 +1,64 @@
-import { useState, useMemo } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { UpcomingGame, Game } from "../types";
-import { useGames } from "../hooks/useGames";
-import { useSeasons } from "../hooks/useSeasons";
+import { useGameSeasons } from "../hooks/useSeasons";
 import { useTeams } from "../hooks/useTeams";
+import { useFavorites } from "../hooks/useFavorites";
+import { useRemote } from "../hooks/useRemote";
+import { getSchedule, getScheduleMonths } from "../lib/api";
 import ScheduleCard from "../components/matches/ScheduleCard";
-import { LoadingState, ErrorState } from "../components/ui/PageState";
-
-type TypeFilter = "all" | "upcoming" | "results";
-type SeasonFilter = "all" | "preseason" | "regular" | "playoffs";
-
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function parseDate(dateStr: string): Date {
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? new Date() : d;
-}
-
-function getMonthKey(dateStr: string): string {
-  const d = parseDate(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function getDayHeading(dateStr: string): string {
-  const d = parseDate(dateStr);
-  return `${DAYS[d.getDay()]} · ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
-
-function getDayLabel(dateStr: string): string {
-  const d = parseDate(dateStr);
-  return DAYS[d.getDay()];
-}
-
-const seasonLabels: Record<string, string> = {
-  all: "All",
-  preseason: "Preseason",
-  regular: "Regular Season",
-  playoffs: "Playoffs",
-};
+import { LoadingState } from "../components/ui/PageState";
 
 export default function Schedule() {
   const navigate = useNavigate();
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>("all");
-  const [monthFilter, setMonthFilter] = useState<string>("all");
-  const [dayFilter, setDayFilter] = useState<string>("all");
-  const [season, setSeason] = useState<string>("all");
-
-  const seasons = useSeasons();
-  const { upcoming, past, loading: gamesLoading, error: gamesError } = useGames(
-    season === "all" ? undefined : season
-  );
-  const { teams, loading: teamsLoading, error: teamsError } = useTeams();
-
-  const all: Game[] = useMemo(
-    // по убыванию даты — последние матчи сверху
-    () => [...past, ...upcoming].sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [past, upcoming]
-  );
-
-  const availableMonths = useMemo(() => {
-    const set = new Set<string>();
-    all.forEach((g) => set.add(getMonthKey(g.date)));
-    return Array.from(set).sort();
-  }, [all]);
-
-  const filtered = useMemo(() => {
-    return all.filter((g) => {
-      // Тип игры — это ещё одно условие, а не ранний выход:
-      // раньше `return` обрывал фильтр и игнорировал сезон/месяц/день.
-      const isResult = "score1" in g;
-      if (typeFilter === "results" && !isResult) return false;
-      if (typeFilter === "upcoming" && isResult) return false;
-      if (seasonFilter !== "all" && g.seasonType !== seasonFilter) return false;
-      if (monthFilter !== "all" && getMonthKey(g.date) !== monthFilter) return false;
-      if (dayFilter !== "all" && getDayLabel(g.date) !== dayFilter) return false;
-      return true;
+  const {seasons,loading:seasonsLoading,error:seasonsError,retry:retrySeasons} = useGameSeasons();
+  const {teams} = useTeams();
+  const favorites = useFavorites();
+  const [filters, setFilters] = useState({season:"",status:"all",type:"all",month:"all",weekday:"all",favorites:false,page:0,pageTeams:""});
+  const season = filters.season || seasons[0];
+  const selected = season === "all" ? undefined : season;
+  const favoriteTeams = favorites.teams.join(",");
+  const page = filters.favorites && filters.pageTeams !== favoriteTeams ? 0 : filters.page;
+  const emptyFavorites = filters.favorites && !favoriteTeams;
+  const load = useCallback(() => {
+    let dateTo: string | undefined;
+    if (filters.month !== "all") {
+      const [year,month] = filters.month.split("-").map(Number);
+      dateTo = `${filters.month}-${new Date(Date.UTC(year,month,0)).getUTCDate()}`;
+    }
+    return emptyFavorites ? Promise.resolve({items:[],total:0}) : getSchedule({
+      season:selected,status:filters.status === "all" ? undefined : filters.status,
+      season_type:filters.type === "all" ? undefined : filters.type,
+      date_from:filters.month === "all" ? undefined : `${filters.month}-01`,date_to:dateTo,
+      weekday:filters.weekday === "all" ? undefined : Number(filters.weekday),
+      team:filters.favorites ? favoriteTeams : undefined,skip:page * 50,limit:50,
     });
-  }, [all, typeFilter, seasonFilter, monthFilter, dayFilter]);
-
-  const grouped = useMemo(() => {
-    const groups: Record<string, Game[]> = {};
-    filtered.forEach((g) => {
-      // ключ — сама дата (YYYY-MM-DD): сортируема и уникальна на день
-      if (!groups[g.date]) groups[g.date] = [];
-      groups[g.date].push(g);
-    });
-    return groups;
-  }, [filtered]);
-
-  if (gamesLoading || teamsLoading) return <LoadingState />;
-  if (gamesError || teamsError)
-    return <ErrorState message={gamesError || teamsError || ""} />;
-
-  const selectCls =
-    "px-3 py-[7px] rounded-[7px] text-xs border border-line text-ink bg-surface cursor-pointer shrink-0";
-
-  return (
-    <div className="px-6 sm:px-11 py-9 max-w-[1100px] mx-auto">
-      <header className="mb-5">
-        <h1 className="font-display font-extrabold text-[26px] tracking-wide uppercase">
-          Schedule
-        </h1>
-        <p className="text-[13px] text-muted mt-1">
-          {season === "all" ? "All seasons" : `${season} NBA Season`} ·{" "}
-          {filtered.length} games
-        </p>
-      </header>
-
-      {/* фильтры — одна строка, при нехватке ширины прокручивается по горизонтали */}
-      <div className="flex gap-2.5 mb-6 items-center flex-nowrap overflow-x-auto pb-1">
-        <div className="flex gap-1 shrink-0">
-          {(["all", "upcoming", "results"] as TypeFilter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setTypeFilter(f)}
-              className={`px-3.5 py-[7px] rounded-[7px] text-[11px] font-bold tracking-wide
-                          uppercase cursor-pointer transition-colors ${
-                            typeFilter === f
-                              ? "bg-brand border border-brand text-white"
-                              : "bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink"
-                          }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-1 shrink-0">
-          {(["all", "preseason", "regular", "playoffs"] as SeasonFilter[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => setSeasonFilter(s)}
-              className={`px-3.5 py-[7px] rounded-[7px] text-[11px] font-bold tracking-wide
-                          cursor-pointer transition-colors ${
-                            seasonFilter === s
-                              ? "bg-info border border-info text-white"
-                              : "bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink"
-                          }`}
-            >
-              {seasonLabels[s]}
-            </button>
-          ))}
-        </div>
-
-        <select
-          value={season}
-          onChange={(e) => {
-            setSeason(e.target.value);
-            setMonthFilter("all"); // месяцы зависят от сезона
-          }}
-          className={selectCls}
-        >
-          <option value="all">All seasons</option>
-          {seasons.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className={selectCls}
-        >
-          <option value="all">All months</option>
-          {availableMonths.map((m) => {
-            const [y, mo] = m.split("-");
-            return (
-              <option key={m} value={m}>
-                {MONTHS[parseInt(mo) - 1]} {y}
-              </option>
-            );
-          })}
-        </select>
-
-        <select
-          value={dayFilter}
-          onChange={(e) => setDayFilter(e.target.value)}
-          className={selectCls}
-        >
-          <option value="all">All days</option>
-          {DAYS.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-
-        {(monthFilter !== "all" || dayFilter !== "all" || seasonFilter !== "all") && (
-          <button
-            onClick={() => {
-              setMonthFilter("all");
-              setDayFilter("all");
-              setSeasonFilter("all");
-            }}
-            className="px-3 py-[7px] rounded-[7px] text-[11px] font-bold cursor-pointer shrink-0
-                       bg-transparent border border-line text-muted hover:border-line-strong hover:text-ink transition-colors"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      {/* список, сгруппированный по месяцам */}
-      {Object.keys(grouped).length === 0 ? (
-        <div className="text-center py-12 text-faint">No games found</div>
-      ) : (
-        Object.entries(grouped).map(([day, games]) => (
-          <div key={day} className="mb-7">
-            <div className="flex items-baseline gap-2.5 mb-3 pl-1">
-              <div className="font-display font-bold text-base tracking-wide text-faint uppercase">
-                {getDayHeading(day)}
-              </div>
-              <div className="text-xs text-faint">{games.length} games</div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {games.map((g) => (
-                <ScheduleCard
-                  key={g.id}
-                  game={g}
-                  team1={teams[g.team1]}
-                  team2={teams[g.team2]}
-                  onSelect={(game: UpcomingGame) => navigate(`/match/${game.id}`)}
-                />
-              ))}
-            </div>
-          </div>
-        ))
-      )}
+  }, [selected,filters.status,filters.type,filters.month,filters.weekday,filters.favorites,page,emptyFavorites,favoriteTeams]);
+  const result = useRemote(season ? JSON.stringify([filters,season,favoriteTeams]) : null, load);
+  const loadMonths = useCallback(() => getScheduleMonths(selected), [selected]);
+  const months = useRemote(season ? `months:${season}` : null, loadMonths);
+  function change(next: Partial<typeof filters>) { setFilters(current => ({...current,...next,page:0})); }
+  const cls = "px-3 py-2 rounded-lg border border-line bg-surface text-ink text-sm";
+  if (seasonsError) return <div className="p-8" role="alert">{seasonsError} <button onClick={retrySeasons}>Retry</button></div>;
+  if (!seasonsLoading && !seasons.length) return <div className="p-8">No game seasons imported</div>;
+  return <div className="px-5 sm:px-10 py-8 max-w-[1100px] mx-auto">
+    <h1 className="font-display font-extrabold text-2xl mb-2">Schedule</h1>
+    <p className="text-muted mb-5">{season === "all" ? "All seasons" : season || "Loading seasons…"} · {result.data?.total ?? 0} games</p>
+    <div className="flex flex-wrap gap-2 mb-5">
+      <select aria-label="Season" className={cls} value={season ?? ""} onChange={event => change({season:event.target.value,month:"all"})}>
+        {!season && <option value="">Loading…</option>}<option value="all">All seasons</option>{seasons.map(s => <option key={s}>{s}</option>)}
+      </select>
+      <select aria-label="Game status" className={cls} value={filters.status} onChange={event => change({status:event.target.value})}>{[["all","All statuses"],["scheduled","Upcoming"],["live","Live"],["final","Results"]].map(([v,label]) => <option key={v} value={v}>{label}</option>)}</select>
+      {[["all","All competitions"],["preseason","Preseason"],["regular","Regular Season"],["playoffs","Playoffs"]].map(([v,label]) => <button key={v} className={cls} aria-pressed={filters.type === v} onClick={() => change({type:v})}>{label}</button>)}
+      <select aria-label="Month" className={cls} value={filters.month} onChange={event => change({month:event.target.value})}><option value="all">All months</option>{months.data?.map(m => <option key={m}>{m}</option>)}</select>
+      <select aria-label="Weekday" className={cls} value={filters.weekday} onChange={event => change({weekday:event.target.value})}><option value="all">All days</option>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day,i) => <option key={day} value={i}>{day}</option>)}</select>
+      <button className={cls} aria-pressed={filters.favorites} onClick={() => change({favorites:!filters.favorites})}>Favorite teams</button>
     </div>
-  );
+    {months.error && <p role="alert">Month choices unavailable <button onClick={months.retry}>Retry</button></p>}
+    {result.loading || !season ? <LoadingState/> : result.error ? <p role="alert">{result.error} <button onClick={result.retry}>Retry</button></p> : !result.data?.items.length ? <p className="py-12 text-center text-muted">{emptyFavorites ? "Save a team to filter favorite games" : "No games found"}</p> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {result.data.items.map(game => <ScheduleCard key={game.id} game={game}
+        team1={teams[game.team1] ?? {abbr:game.team1,name:game.team1,city:"",record:""}}
+        team2={teams[game.team2] ?? {abbr:game.team2,name:game.team2,city:"",record:""}}
+        onSelect={g => navigate(`/match/${encodeURIComponent(g.id)}`)}/>)}</div>}
+    <div className="flex items-center gap-3 mt-6"><button className={cls} disabled={result.loading || page === 0} onClick={() => setFilters(f => ({...f,page:page-1,pageTeams:favoriteTeams}))}>Previous</button><span>Page {page+1}</span><button className={cls} disabled={result.loading || (page+1)*50 >= (result.data?.total ?? 0)} onClick={() => setFilters(f => ({...f,page:page+1,pageTeams:favoriteTeams}))}>Next</button></div>
+  </div>;
 }

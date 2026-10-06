@@ -38,7 +38,7 @@ describe("Teams seasons", () => {
   });
   it("preserves an explicit season when opening a team", async () => {
     show("/teams?season=2023-24");
-    const card = await screen.findByRole("button", { name: /Celtics/i });
+    const card = await screen.findByRole("button", { name: /^Open team.*Celtics/i });
     await userEvent.click(card);
     expect(screen.getByTestId("location")).toHaveTextContent("/teams/BOS?season=2023-24");
   });

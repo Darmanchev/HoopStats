@@ -79,11 +79,14 @@ async def get_players(
     min_games: int = Query(0, ge=0),
     search: str | None = Query(None, max_length=100),
     season: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
+    ids: str | None = Query(None, max_length=2000, pattern=r"^\d+(,\d+)*$"),
     db: AsyncSession = Depends(get_db),
 ):
     _validate_season(season)
     if season is None:
         query = select(Player).where(Player.games_played >= min_games)
+        if ids:
+            query = query.where(Player.id.in_([int(value) for value in ids.split(",")]))
         if team:
             query = query.where(Player.team_abbr == team.upper())
         if position:
@@ -115,6 +118,8 @@ async def get_players(
             PlayerSeasonStat.games_played >= min_games,
         )
     )
+    if ids:
+        query = query.where(Player.id.in_([int(value) for value in ids.split(",")]))
     if team:
         query = query.where(PlayerSeasonStat.primary_team_abbr == team.upper())
     if position:

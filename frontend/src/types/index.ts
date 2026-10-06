@@ -57,9 +57,11 @@ export interface UpcomingGame {
   prediction: string | null;
   factors?: Factor[];
   startTime?: string | null;
+  homeAbbr?: string | null;
 }
 
 export interface LiveGame extends UpcomingGame {
+  periodScores?: { period: number; score1: number; score2: number }[] | null;
   status: "scheduled" | "live" | "final";
   statusText: string;
   period: number | null;

@@ -14,6 +14,7 @@ class GameBase(CamelModel):
     season_type: str = "regular"
     season: str
     start_time: datetime | None = None
+    home_abbr: str | None = None
 
     @field_validator("team1", "team2")
     @classmethod
@@ -68,7 +69,7 @@ class LiveGameSchema(UpcomingGameSchema):
 
 
 class GameDetailSchema(LiveGameSchema):
-    pass
+    period_scores: list[dict[str, int]] | None = None
 
 class PastGameSchema(GameBase):
     score1: int

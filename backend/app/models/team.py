@@ -29,6 +29,6 @@ class Team(Base):
 
     players = relationship("Player", back_populates="team")
     stats = relationship("TeamStats", back_populates="team", uselist=False)
-    home_games = relationship("Game", back_populates="home_team", foreign_keys="[Game.team1]")
-    away_games = relationship("Game", back_populates="away_team", foreign_keys="[Game.team2]")
+    home_games = relationship("Game", back_populates="home_team", foreign_keys="[Game.team2]")
+    away_games = relationship("Game", back_populates="away_team", foreign_keys="[Game.team1]")
     injuries = relationship("Injury", back_populates="team")

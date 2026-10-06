@@ -8,6 +8,7 @@ import TeamDetail from "./pages/TeamDetail";
 import Injuries from "./pages/Injuries";
 import Players from "./pages/Players";
 import PlayerDetail from "./pages/PlayerDetail";
+import PlayerCompare from "./pages/PlayerCompare";
 import Analytics from "./pages/Analytics";
 import ErrorPage from "./pages/ErrorPage";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="teams" element={<Teams />} />
             <Route path="teams/:abbr" element={<TeamDetail />} />
             <Route path="players" element={<Players />} />
+            <Route path="players/compare" element={<PlayerCompare />} />
             <Route path="players/:id" element={<PlayerDetail />} />
             <Route path="injuries" element={<Injuries />} />
             <Route path="analytics" element={<Analytics />} />

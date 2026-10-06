@@ -220,3 +220,67 @@ season query and a new player-season listing endpoint. API-NBA supplies player
 profiles and season statistics; BALLDONTLIE continues to supply teams and
 games. Provider IDs remain separate, unsupported fields stay nullable, and
 team statistics and injuries continue through their existing integrations.
+
+## Exploration and prediction improvements
+
+Schedule now filters games on the server and loads 50 results per page. It supports
+season, competition, live/scheduled/final status, month, weekday and favorite teams.
+The header searches imported players, teams and games. Player comparison uses one
+shared season, and its URL preserves both players and the season.
+
+Save teams or players from their cards and profiles. Favorites are stored in the
+current browser and appear on the dashboard; no account is required. Player logs
+show only imported official box scores. An empty historical log does not mean the
+player did not play. Opening a log or comparison does not fetch external NBA data.
+
+Match details display available scores, current period/clock, per-period points
+(including overtime), and box scores. Supplementary request failures have their own
+retry actions. Visible live match pages refresh every 30 seconds; provider imports
+still run at the configured live-sync interval. Missing predictions and quarter
+scores are explicitly labeled as unavailable.
+
+Run migrations before using the new backend, then retrain the model:
+
+```bash
+make migrate
+make train
+```
+
+Training requires at least 200 eligible rows with eight prior games per team and
+both outcome classes. Ratings and model history include completed regular-season
+and playoff games, excluding preseason, tied/incomplete results and invalid teams.
+Historical fixture predictions use only results preceding the fixture date.
+Home/away information is recorded explicitly by new imports. Older NBA history
+imports did not reliably retain venue ordering; these games use an unknown-home
+input rather than a guessed home team. BALLDONTLIE ordering is known.
+
+The model now uses home advantage and rest-day difference alongside form, recent
+win percentage, scoring margin and Elo. Rest is capped at seven days. Training
+adds mirrored team-order samples so home advantage can be learned even though
+provider records are away-first. Evaluation counts refer to real games, without
+mirroring held-out results. Existing model files require retraining for the new
+feature format; incompatible files produce unavailable predictions.
+
+Analytics includes imported game seasons and displays Elo and leaders for the
+selected season, with separate messages for missing datasets. Its prediction
+performance section reports chronological held-out accuracy, log loss, Brier score,
+AUC when defined, calibration bins and individual results. The evaluator fits on
+prior seasons and tests the latest eligible season; the deployed model is then
+refit on all eligible games. With only one season, test performance is unavailable.
+The Elo baseline uses Elo probabilities; the fixed home-preference baseline uses
+60% for a known home team (40% away, 50% unknown). These are evaluation baselines,
+not guarantees of prediction quality.
+
+Model and evaluation artifacts are written atomically to `HOOPSTATS_MODEL_DIR`
+(default: `backend/app/ml` outside Docker). Docker uses `/app/artifacts`. Development
+has a writable artifact volume; production shares it between the scheduler
+(writable) and API (read-only), so manually training in the scheduler updates the
+API's report and model. Production training:
+
+```bash
+python -m scripts.train_model
+```
+
+Run that command in the scheduler container after historical imports. It refreshes
+upcoming predictions after training. Retraining and historical imports are manual;
+viewing Analytics does not train a model or spend provider quota.

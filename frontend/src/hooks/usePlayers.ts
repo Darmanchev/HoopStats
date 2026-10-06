@@ -5,6 +5,7 @@ import type { Player } from "../types";
 
 interface UsePlayersOptions {
   search?: string;
+  ids?: string;
   skip?: number;
   sortBy?: string;
   team?: string;
@@ -47,6 +48,7 @@ export function usePlayers(options?: UsePlayersOptions) {
         options?.limit ?? 200,
         options?.season ?? "",
         options?.search ?? "",
+        options?.ids ?? "",
         options?.skip ?? 0,
       ])
     : null;
@@ -64,6 +66,7 @@ export function usePlayers(options?: UsePlayersOptions) {
       limit: options?.limit ?? 200,
       season: options?.season,
       search: options?.search,
+      ids: options?.ids,
       skip: options?.skip,
     })
       .then((players) => {
@@ -93,6 +96,7 @@ export function usePlayers(options?: UsePlayersOptions) {
     options?.limit,
     options?.season,
     options?.search,
+    options?.ids,
     options?.skip,
   ]);
 

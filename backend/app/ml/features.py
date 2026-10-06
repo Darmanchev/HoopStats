@@ -10,7 +10,8 @@ from collections import defaultdict, deque
 from datetime import date
 
 # порядок признаков фиксирован — модель обучается и предсказывает по нему
-FEATURE_NAMES = ["d_form", "d_winpct", "d_net", "d_elo"]
+FEATURE_VERSION = 2
+FEATURE_NAMES = ["d_form", "d_winpct", "d_net", "d_elo", "home", "d_rest"]
 
 FORM_WINDOW = 10        # окно "формы" (последние N игр)
 WINPCT_WINDOW = 30      # окно для общего % побед
@@ -96,19 +97,27 @@ class LeagueState:
         self.elo: dict[str, float] = defaultdict(lambda: ELO_BASE)
         self._season: str | None = None
 
-    def feature_vector(self, team1: str, team2: str, game_date: date) -> list[float]:
+    def feature_vector(self, team1: str, team2: str, game_date: date, home_team: str | None = None) -> list[float]:
         """Признаки матча по ТЕКУЩЕМУ состоянию (до игры)."""
-        return _diff_vector(
+        vector = _diff_vector(
             self.hist[team1], self.hist[team2],
             self.elo[team1], self.elo[team2], game_date,
         )
+        home = 1.0 if home_team == team1 else -1.0 if home_team == team2 else 0.0
+        dates = self.hist[team1].last_date, self.hist[team2].last_date
+        rest = 0.0
+        if all(d is not None and d < game_date for d in dates):
+            rest = float(min(7, (game_date - dates[0]).days) - min(7, (game_date - dates[1]).days))
+        return vector + [home, rest]
 
-    def record(self, g: dict) -> None:
-        """Вносит результат сыгранной игры в историю и Elo."""
-        season = g.get("season")
+    def prepare_season(self, season: str | None) -> None:
         if self._season is not None and season != self._season:
             self._regress_season()
         self._season = season
+
+    def record(self, g: dict) -> None:
+        """Вносит результат сыгранной игры в историю и Elo."""
+        self.prepare_season(g.get("season"))
 
         t1, t2 = g["team1"], g["team2"]
         s1, s2 = g["score1"], g["score2"]
@@ -133,7 +142,7 @@ class LeagueState:
             self.elo[team] = ELO_REGRESS * self.elo[team] + (1 - ELO_REGRESS) * ELO_BASE
 
 
-def build_training_rows(games: list[dict]):
+def build_training_rows(games: list[dict], with_metadata: bool = False):
     """Хронологический проход: признаки игры считаем ДО внесения её
     результата в состояние. Возвращает (X, y, seasons)."""
     games_sorted = sorted(games, key=lambda g: g["date"])
@@ -141,26 +150,49 @@ def build_training_rows(games: list[dict]):
     X: list[list[float]] = []
     y: list[int] = []
     seasons: list[str] = []
+    metadata: list[dict] = []
 
     for g in games_sorted:
         s1, s2 = g["score1"], g["score2"]
-        if s1 is None or s2 is None:
+        if not eligible_game(g):
             continue
+        state.prepare_season(g.get("season"))
         t1, t2 = g["team1"], g["team2"]
         if state.hist[t1].count >= MIN_HISTORY and state.hist[t2].count >= MIN_HISTORY:
-            X.append(state.feature_vector(t1, t2, parse_date(g["date"])))
+            X.append(state.feature_vector(t1, t2, parse_date(g["date"]), g.get("home_team")))
+            metadata.append({"id": g.get("id", ""), "date": g["date"], "team1": t1, "team2": t2, "season": g.get("season"), "home_team": g.get("home_team")})
             y.append(1 if s1 > s2 else 0)
             seasons.append(g.get("season", "?"))
         state.record(g)
 
-    return X, y, seasons
+    return (X, y, seasons, metadata) if with_metadata else (X, y, seasons)
 
 
 def build_state(games: list[dict]) -> LeagueState:
     """Финальное состояние лиги по всем сыгранным играм."""
     state = LeagueState()
     for g in sorted(games, key=lambda g: g["date"]):
-        if g["score1"] is None or g["score2"] is None:
+        if not eligible_game(g):
             continue
         state.record(g)
     return state
+
+
+def eligible_game(g: dict) -> bool:
+    return (g.get("status", "final") == "final"
+            and g.get("season_type", "regular") in {"regular", "playoffs"}
+            and bool(g.get("team1")) and bool(g.get("team2"))
+            and g["team1"] != g["team2"]
+            and g.get("score1") is not None and g.get("score2") is not None
+            and g["score1"] >= 0 and g["score2"] >= 0
+            and g["score1"] != g["score2"])
+
+
+def verified_home(g) -> str | None:
+    """Use explicit import provenance; legacy NBA history ordering is ambiguous."""
+    known = getattr(g, "home_abbr", None)
+    if known in {g.team1, g.team2} and known is not None:
+        return known
+    if str(g.id).startswith("bdl:"):
+        return g.team2
+    return None

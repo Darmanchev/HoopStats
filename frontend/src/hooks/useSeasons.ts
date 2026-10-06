@@ -1,21 +1,10 @@
-import { useState, useEffect } from "react";
+import { useCallback } from "react";
 import { getSeasons } from "../lib/api";
+import { useRemote } from "./useRemote";
 
-/** Список доступных сезонов (отсортирован от свежего к старому). */
-export function useSeasons() {
-  const [seasons, setSeasons] = useState<string[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSeasons()
-      .then((s) => !cancelled && setSeasons(s))
-      .catch(() => {
-        /* выпадашка просто останется пустой */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return seasons;
+export function useGameSeasons() {
+  const loader = useCallback(() => getSeasons(), []);
+  const result = useRemote("game-seasons", loader);
+  return {seasons:result.data ?? [],loading:result.loading,error:result.error,retry:result.retry};
 }
+export function useSeasons() { return useGameSeasons().seasons; }

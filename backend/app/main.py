@@ -7,7 +7,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import settings
 from .rate_limit import RateLimitMiddleware
-from .routers import analytics, games, injuries, players, teams
+from .routers import analytics, games, injuries, players, teams, search, player_games
 
 
 @asynccontextmanager
@@ -45,6 +45,8 @@ app.include_router(games.router)
 app.include_router(injuries.router)
 app.include_router(players.router)
 app.include_router(analytics.router)
+app.include_router(search.router)
+app.include_router(player_games.router)
 
 @app.get("/health")
 async def health():

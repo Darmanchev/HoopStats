@@ -108,6 +108,7 @@ export async function getTeamInjuries(team_abbr: string): Promise<Injury[]> {
 
 export async function getPlayers(params?: {
   search?: string;
+  ids?: string;
   skip?: number;
   limit?: number;
   sort_by?: string;
@@ -124,6 +125,7 @@ export async function getPlayers(params?: {
   if (params?.position) qs.set("position", params.position);
   if (params?.min_games !== undefined) qs.set("min_games", String(params.min_games));
   if (params?.season) qs.set("season", params.season);
+  if (params?.ids) qs.set("ids", params.ids);
   if (params?.search) qs.set("search", params.search);
   const query = qs.toString();
   return fetcher(`/players/${query ? `?${query}` : ""}`);
@@ -146,8 +148,8 @@ export interface EloEntry {
   elo: number;
 }
 
-export async function getElo(): Promise<EloEntry[]> {
-  return fetcher("/analytics/elo");
+export async function getElo(season?: string): Promise<EloEntry[]> {
+  return fetcher(`/analytics/elo${season ? `?season=${encodeURIComponent(season)}` : ""}`);
 }
 
 export function getLeaders(season?: string): Promise<Record<string, Player[]>> {
@@ -185,4 +187,46 @@ export function getBoxScore(gameId: string): Promise<PlayerGameStat[]> {
   return cachedRequest(`game:${gameId}:boxscore`, API_MEMORY_CACHE_MS, () =>
     fetcher(`/games/${gameId}/boxscore`),
   );
+}
+
+export interface Page<T> { items: T[]; total: number }
+export interface ScheduleParams {
+  season?: string; season_type?: string; status?: string; team?: string;
+  date_from?: string; date_to?: string; weekday?: number; skip?: number; limit?: number;
+}
+export function getSchedule(params: ScheduleParams): Promise<Page<LiveGame>> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== "") query.set(key, String(value));
+  return fetcher(`/games/?${query}`);
+}
+export function getScheduleMonths(season?: string): Promise<string[]> {
+  return fetcher(`/games/months${season ? `?season=${encodeURIComponent(season)}` : ""}`);
+}
+export interface SearchEntry { id: string; label: string; url: string }
+export type SearchResults = Record<"players" | "teams" | "games", SearchEntry[]>;
+export function getSearch(query: string): Promise<SearchResults> {
+  return fetcher(`/search?q=${encodeURIComponent(query)}&limit=5`);
+}
+export interface PlayerLog {
+  gameId: string; date: string; teamAbbr: string; opponent: string; homeAway: string;
+  result: string | null; points: number; rebounds: number; assists: number; steals: number; blocks: number; minutes: number;
+}
+export interface PlayerLogs extends Page<PlayerLog> {
+  coverage: { identityResolved: boolean; importedGames: number; note: string };
+}
+export function getPlayerGames(id: number, season?: string, skip = 0): Promise<PlayerLogs> {
+  const query = new URLSearchParams({skip:String(skip),limit:"20"});
+  if (season) query.set("season", season);
+  return fetcher(`/players/${id}/games?${query}`);
+}
+export interface EvaluationMetrics { accuracy: number; log_loss: number; brier: number; auc: number | null }
+export interface EvaluationReport {
+  available: boolean; reason?: string; test_season?: string; trained_at?: string; n_train?: number; n_test?: number;
+  metrics?: EvaluationMetrics; baselines?: Record<string, EvaluationMetrics>;
+  calibration?: { lower: number; upper: number; count: number; predicted: number | null; observed: number | null }[];
+  games: { id: string; date: string; team1: string; team2: string; probability: number; actual: number; correct: boolean }[];
+  total: number;
+}
+export function getModelPerformance(skip = 0): Promise<EvaluationReport> {
+  return fetcher(`/analytics/model-performance?skip=${skip}&limit=20`);
 }

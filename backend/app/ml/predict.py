@@ -1,29 +1,42 @@
 """Прогноз исхода матча обученной моделью."""
 from pathlib import Path
+import os
 
 import joblib
 
-from .features import LeagueState, parse_date
+from .features import LeagueState, parse_date, FEATURE_NAMES, FEATURE_VERSION
 
-MODEL_PATH = Path(__file__).parent / "model.joblib"
+MODEL_PATH = Path(os.environ.get("HOOPSTATS_MODEL_DIR", str(Path(__file__).parent))) / "model.joblib"
 
-_bundle = None  # ленивый кэш загруженной модели
+_bundle = None
+_bundle_stamp = None
+
+
+class ModelUnavailableError(FileNotFoundError):
+    """Missing or incompatible model; operational callers should retrain."""
 
 
 def load_model() -> dict:
-    """Загружает {"model", "features"}; кэширует. Бросает FileNotFoundError,
-    если модель ещё не обучена."""
-    global _bundle
-    if _bundle is None:
-        if not MODEL_PATH.exists():
-            raise FileNotFoundError(
-                "Модель не обучена — запустите make train"
-            )
-        _bundle = joblib.load(MODEL_PATH)
+    global _bundle, _bundle_stamp
+    try:
+        stat = MODEL_PATH.stat()
+    except FileNotFoundError as exc:
+        raise ModelUnavailableError("Model unavailable; retrain with make train") from exc
+    stamp = (str(MODEL_PATH), stat.st_mtime_ns, stat.st_size, stat.st_ino)
+    if _bundle is None or _bundle_stamp != stamp:
+        try:
+            candidate = joblib.load(MODEL_PATH)
+        except Exception as exc:
+            raise ModelUnavailableError("Model unreadable; retrain with make train") from exc
+        if (not isinstance(candidate, dict) or candidate.get("features") != FEATURE_NAMES
+                or candidate.get("feature_version") != FEATURE_VERSION
+                or not callable(getattr(candidate.get("model"), "predict_proba", None))):
+            raise ModelUnavailableError("Model feature format changed; retrain with make train")
+        _bundle, _bundle_stamp = candidate, stamp
     return _bundle
 
 
-def _explain(team1: str, team2: str, win1: float, state: LeagueState) -> str:
+def _explain(team1: str, team2: str, win1: float, state: LeagueState, home_team: str | None = None, game_date=None) -> str:
     """Короткий текст-объяснение прогноза (на английском — язык интерфейса).
 
     win1 — шанс победы team1 в процентах (0..100, один знак после запятой).
@@ -44,18 +57,28 @@ def _explain(team1: str, team2: str, win1: float, state: LeagueState) -> str:
         parts = [f"{fav} are {tier} favorite at {pct}%."]
 
     factors: list[str] = []
+    if home_team == fav:
+        factors.append("home court")
+    if game_date is not None:
+        dates = state.hist[fav].last_date, state.hist[dog].last_date
+        if all(d is not None and d < game_date for d in dates):
+            rest = [min(7, (game_date - d).days) for d in dates]
+            if rest[0] > rest[1]:
+                factors.append(f"more rest ({rest[0]} vs {rest[1]} days)")
     if fav_elo - dog_elo >= 25:
         factors.append(f"higher Elo ({round(fav_elo)} vs {round(dog_elo)})")
     if ff["winpct"] - df["winpct"] >= 0.05:
         factors.append(
             f"better record ({round(ff['winpct'] * 100)}% vs {round(df['winpct'] * 100)}%)"
         )
-    fw, dw = round(ff["form"] * 10), round(df["form"] * 10)
-    if fw - dw >= 2:
-        factors.append(f"hotter form ({fw}-{10 - fw} vs {dw}-{10 - dw} L10)")
+    fn, dn = min(10, len(state.hist[fav].results)), min(10, len(state.hist[dog].results))
+    fw, dw = round(ff["form"] * fn), round(df["form"] * dn)
+    if fn and dn and ff["form"] - df["form"] >= .2:
+        window = f"last {fn}" if fn == dn else f"last {fn}/{dn} games"
+        factors.append(f"hotter form ({fw}-{fn - fw} vs {dw}-{dn - dw} {window})")
     fnet, dnet = ff["off"] - ff["def"], df["off"] - df["def"]
     if fnet - dnet >= 2:
-        factors.append(f"net-rating edge ({fnet:+.1f} vs {dnet:+.1f})")
+        factors.append(f"scoring-margin edge ({fnet:+.1f} vs {dnet:+.1f})")
 
     if factors:
         parts.append("Key factors: " + ", ".join(factors) + ".")
@@ -65,14 +88,14 @@ def _explain(team1: str, team2: str, win1: float, state: LeagueState) -> str:
 
 
 def predict_game(state: LeagueState, team1: str, team2: str,
-                 game_date: str) -> tuple[float, str]:
+                 game_date: str, home_team: str | None = None) -> tuple[float, str]:
     """Возвращает (win1, prediction_text) для матча team1 vs team2.
 
     win1 — вероятность победы team1 в процентах, один знак после запятой.
     """
     bundle = load_model()
     model = bundle["model"]
-    feats = state.feature_vector(team1, team2, parse_date(game_date))
+    feats = state.feature_vector(team1, team2, parse_date(game_date), home_team)
     prob1 = float(model.predict_proba([feats])[0][1])
     win1 = round(prob1 * 100, 1)  # процент с одним знаком после запятой
-    return win1, _explain(team1, team2, win1, state)
+    return win1, _explain(team1, team2, win1, state, home_team, parse_date(game_date))

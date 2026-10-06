@@ -64,7 +64,7 @@ async def test_box_score_uses_official_id_but_saves_local_id(db_session, monkeyp
     await db_session.flush()
     db_session.add(game)
     await db_session.commit()
-    row = {"game_id": "0022600012", "away_abbr": "BOS", "home_abbr": "LAL", "date": today, "status": "live", "away_score": 30, "home_score": 20}
+    row = {"game_id": "0022600012", "away_abbr": "BOS", "home_abbr": "LAL", "date": today, "status": "live", "away_score": 30, "home_score": 20, "period_scores": [{"period": 1, "score1": 30, "score2": 20}]}
     monkeypatch.setattr(live_box_scores.nba, "fetch_live_scoreboard", lambda: [row])
     requested = []
     def boxscore(official_id):
@@ -80,6 +80,10 @@ async def test_box_score_uses_official_id_but_saves_local_id(db_session, monkeyp
     assert save.await_args.args[2][0]["game_id"] == "bdl:123"
     assert game.is_today is True
     assert game.status == "live"
+    assert game.period_scores == [{"period": 1, "score1": 30, "score2": 20}]
+    row.pop("period_scores")
+    await live_box_scores.sync_box_scores(db_session)
+    assert game.period_scores == [{"period": 1, "score1": 30, "score2": 20}]
 
 
 @pytest.mark.asyncio

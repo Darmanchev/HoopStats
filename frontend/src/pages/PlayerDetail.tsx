@@ -1,4 +1,6 @@
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import FavoriteButton from "../components/ui/FavoriteButton";
+import PlayerGameLog from "../components/players/PlayerGameLog";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { PlayerDetail } from "../types";
 import TeamLogo from "../components/teams/TeamLogo";
 import { LoadingState } from "../components/ui/PageState";
@@ -87,6 +89,7 @@ export default function PlayerDetailPage() {
         <TeamLogo team={teamFallback} abbr={player.teamAbbr} size={48} />
       </div>
 
+      <div className="flex gap-3 mb-5"><FavoriteButton player={player.id} name={player.name}/><Link className="border border-line p-2 rounded-lg" to={`/players/compare?left=${player.id}${season ? `&season=${encodeURIComponent(season)}` : ""}`}>Compare player</Link></div>
       {/* Per-game averages */}
       <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-xl px-7 py-6 mb-5">
         <div className="text-[11px] tracking-[1.2px] text-faint font-bold uppercase mb-4">
@@ -129,6 +132,7 @@ export default function PlayerDetailPage() {
           })}
         </div>
       </div>
+      <PlayerGameLog key={`${player.id}:${season}`} id={player.id} season={season}/>
     </div>
   );
 }

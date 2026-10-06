@@ -46,6 +46,7 @@ async def upsert_games(
                 id=data["game_id"],
                 team1=data["away_abbr"],
                 team2=data["home_abbr"],
+                home_abbr=data["home_abbr"],
                 date=data["date"],
                 time=data["status_text"],
                 venue=data["venue"],
@@ -65,6 +66,7 @@ async def upsert_games(
 
         game.team1 = data["away_abbr"]
         game.team2 = data["home_abbr"]
+        game.home_abbr = data["home_abbr"]
         game.date = data["date"]
         game.time = data["status_text"]
         game.venue = data["venue"]

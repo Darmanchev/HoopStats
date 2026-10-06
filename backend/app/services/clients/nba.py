@@ -103,6 +103,28 @@ def parse_standings(data: dict[str, Any]) -> dict[int, StandingData]:
     return records
 
 
+def parse_period_scores(away: dict, home: dict) -> list[dict[str, int]] | None:
+    """Return paired available periods; never infer them from totals."""
+    def periods(team):
+        rows = team.get("periods")
+        if not isinstance(rows, list) or not rows:
+            return None
+        result = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                return None
+            period, score = row.get("period"), row.get("score")
+            if (type(period) is not int or period < 1 or type(score) is not int
+                    or score < 0 or period in result):
+                return None
+            result[period] = score
+        return result
+    a, h = periods(away), periods(home)
+    if not a or not h or a.keys() != h.keys():
+        return None
+    return [{"period": p, "score1": a[p], "score2": h[p]} for p in sorted(a)]
+
+
 def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
     board = data.get("scoreboard")
     if not isinstance(board, dict) or not isinstance(board.get("games"), list):
@@ -138,6 +160,7 @@ def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
         ):
             logger.warning("Skipping game with incomplete scores: %r", game_id)
             continue
+        periods = parse_period_scores(away, home)
         games.append(
             {
                 "game_id": game_id,
@@ -152,6 +175,7 @@ def parse_live_scoreboard(data: dict[str, Any]) -> list[LiveGameData]:
                 "away_score": away_score,
                 "home_score": home_score,
                 "venue": str(raw.get("arenaName") or ""),
+                **({"period_scores": periods} if periods is not None else {}),
             }
         )
     if raw_games and not games:

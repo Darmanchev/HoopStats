@@ -18,24 +18,24 @@ const FAINT = "var(--color-faint)";
 export default function ScheduleCard({ game, team1, team2, onSelect }: Props) {
   if (!team1 || !team2) return null;
 
-  const isPast = "score1" in game;
-  const clickable = !isPast && !!onSelect;
+  const isPast = "score1" in game && game.score1 != null && game.score2 != null;
+  const clickable = !!onSelect;
 
   // значение справа от каждой команды (счёт или % победы) + его цвет
   let v1: string, v2: string, c1: string, c2: string, status: string;
-  if ("score1" in game) {
+  if (isPast && "score1" in game && game.score1 != null && game.score2 != null) {
     v1 = String(game.score1);
     v2 = String(game.score2);
     c1 = game.score1 > game.score2 ? WIN : game.score1 < game.score2 ? LOSS : FAINT;
     c2 = game.score2 > game.score1 ? WIN : game.score2 < game.score1 ? LOSS : FAINT;
-    status = "Final";
+    status = "status" in game && game.status === "live" ? String(("statusText" in game && game.statusText) || "Live") : "Final";
   } else {
-    const win1 = game.win1 ?? 50;
-    v1 = `${win1.toFixed(1)}%`;
-    v2 = `${(100 - win1).toFixed(1)}%`;
+    const win1 = "win1" in game ? game.win1 : null;
+    v1 = win1 == null ? "—" : `${win1.toFixed(1)}%`;
+    v2 = win1 == null ? "—" : `${(100 - win1).toFixed(1)}%`;
     c1 = getTeamColors(game.team1).accent;
     c2 = getTeamColors(game.team2).accent;
-    status = formatGameTime(game);
+    status = formatGameTime(game as UpcomingGame);
   }
 
   const teamLine = (team: Team, abbr: string, value: string, color: string) => (
@@ -85,6 +85,8 @@ export default function ScheduleCard({ game, team1, team2, onSelect }: Props) {
         )}
       </div>
 
+      <p className="text-xs text-muted">{game.date} · {"homeAbbr" in game && game.homeAbbr ? `${game.team1 === game.homeAbbr ? "Home" : "Away"} / ${game.team2 === game.homeAbbr ? "Home" : "Away"}` : "Home/away unavailable"}</p>
+      {!isPast && (! ("win1" in game) || game.win1 == null) && <p className="text-xs text-muted">Prediction unavailable</p>}
       <div className="flex flex-col gap-2">
         {teamLine(team1, game.team1, v1, c1)}
         {teamLine(team2, game.team2, v2, c2)}

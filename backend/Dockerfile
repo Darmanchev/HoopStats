@@ -10,6 +10,7 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV HOOPSTATS_MODEL_DIR=/app/artifacts
 
 RUN uv sync --frozen --no-dev --no-install-project
 
@@ -24,6 +25,9 @@ RUN groupadd --system appgroup \
         --gid appgroup \
         --home-dir /nonexistent \
         appuser
+
+RUN mkdir -p /app/artifacts \
+    && chown -R appuser:appgroup /app/artifacts
 
 USER appuser
 

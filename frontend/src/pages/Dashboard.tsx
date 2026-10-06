@@ -1,3 +1,4 @@
+import FavoritesWidget from "../components/dashboard/FavoritesWidget";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -107,6 +108,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      <FavoritesWidget teams={teams}/>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="min-w-0 xl:min-h-[420px]">
           <UpcomingGamesWidget

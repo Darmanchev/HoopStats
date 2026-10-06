@@ -11,7 +11,7 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
-ELO_CACHE_KEY = "analytics:elo:v1"
+ELO_CACHE_KEY = "analytics:elo:v2"
 ELO_LOCK_KEY = f"{ELO_CACHE_KEY}:lock"
 TEAMS_CACHE_KEY = "api:teams:v1"
 TODAY_GAMES_CACHE_KEY = "api:games:today:v1"
@@ -49,7 +49,11 @@ async def invalidate_elo_cache() -> None:
     """Invalidate Elo after committed game updates."""
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     try:
-        await redis.delete(ELO_CACHE_KEY)
+        keys = [ELO_CACHE_KEY]
+        async for key in redis.scan_iter(match=f"{ELO_CACHE_KEY}:*"):
+            if not key.endswith(":lock"):
+                keys.append(key)
+        await redis.delete(*keys)
     except RedisError:
         # Game data is already committed; cache failure must not roll it back.
         logger.exception("Failed to invalidate Elo cache")

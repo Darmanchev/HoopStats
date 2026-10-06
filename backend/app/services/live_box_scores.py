@@ -47,11 +47,14 @@ async def sync_box_scores(db) -> int:
         if not rows or any(row["game_id"] != official_id or row["team_abbr"] not in {game.team1, game.team2} for row in rows):
             raise ValueError(f"Missing or mismatched NBA box score for {game.id}")
         official_game = next(row for row in scoreboard if row["game_id"] == official_id)
+        game.home_abbr = official_game["home_abbr"]
         game.is_today = True
         game.status = official_game["status"]
         game.status_text = official_game.get("status_text", "")
         game.period = official_game.get("period")
         game.clock = official_game.get("clock")
+        if official_game.get("period_scores") is not None:
+            game.period_scores = official_game["period_scores"]
         game.score1 = official_game.get("away_score")
         game.score2 = official_game.get("home_score")
         rows = [{**row, "game_id": game.id} for row in rows]

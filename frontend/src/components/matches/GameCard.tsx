@@ -56,7 +56,7 @@ export default function GameCard({ game, team1, team2, onClick }: Props) {
         <TeamLogo team={team2} abbr={game.team2} size={46} />
       </div>
 
-      <WinBar pct1={game.win1 ?? 50} team1={team1} team2={team2} />
+      {game.win1 != null ? <WinBar pct1={game.win1} team1={team1} team2={team2} /> : <p className="text-muted text-sm">Prediction unavailable</p>}
     </div>
   );
 }

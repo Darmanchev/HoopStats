@@ -1,150 +1,60 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import TeamLogo from "../components/teams/TeamLogo";
 import WinBar from "../components/matches/WinBar";
 import FormBadge from "../components/teams/FormBadge";
 import SparkLine from "../components/teams/SparkLine";
 import { LoadingState } from "../components/ui/PageState";
 import { useMatch } from "../hooks/useMatch";
-import { getTeamColors } from "../utils/colors";
+import { formatGameTime } from "../utils/gameTime";
+import type { Team } from "../types";
 
 export default function MatchDetail() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { game, teams, stats, loading, error } = useMatch(id);
-
-  if (loading) return <LoadingState />;
-
-  if (error || !game) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
-        <div className="text-sm text-brand">{error || "Game not found"}</div>
-        <button
-          onClick={() => navigate("/")}
-          className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-lg
-                     cursor-pointer border-none hover:opacity-90 transition-opacity"
-        >
-          Back to Dashboard
-        </button>
+  const { id } = useParams<{id:string}>();
+  const {game,teams,stats,loading,error,teamError,statsErrors,boxScore,boxLoading,boxError,sourceStatus,retry,retryTeams,retryStats,retryBox} = useMatch(id);
+  if (loading) return <LoadingState/>;
+  if (!game) return <div className="p-8"><p role="alert">{error || "Game not found"}</p><button onClick={retry}>Retry</button> · <Link to="/schedule">Back to Schedule</Link></div>;
+  const team = (abbr:string):Team => teams[abbr] ?? {abbr,name:abbr,city:"",record:""};
+  const away = team(game.team1), home = team(game.team2);
+  const live = game.status === "live";
+  const status = game.status === "final" ? "Final" : live ? game.statusText || `Period ${game.period ?? "—"} · ${game.clock ?? ""}` : "Scheduled";
+  const freshness = Object.entries(sourceStatus).filter(([name]) => /live|box/i.test(name)).map(([,status]) => status.last_success).filter((date):date is string => Boolean(date)).sort().at(-1);
+  return <div className="px-5 sm:px-10 py-8 max-w-[1000px] mx-auto">
+    <Link to="/schedule" className="text-muted">← Back to Schedule</Link>
+    {error && <p role="alert" className="mt-3">Match refresh failed: {error} <button onClick={retry}>Retry</button></p>}
+    {teamError && <p className="mt-3" role="alert">Team details unavailable <button onClick={retryTeams}>Retry</button></p>}
+    <div className="bg-surface border border-line rounded-2xl p-5 sm:p-8 my-5">
+      <p className="text-center text-muted">{game.date} · {formatGameTime(game)} · {game.venue || "Venue TBA"}</p>
+      <p className="text-center font-bold my-3" aria-live="polite">{status}</p>
+      {freshness && <p className="text-center text-xs text-muted">Source updated {new Date(freshness).toLocaleString()}</p>}
+      <div className="flex items-center justify-between gap-3 my-6">
+        {[away,home].map((t,index) => <div key={t.abbr} className="text-center flex-1 min-w-0">
+          <TeamLogo team={t} abbr={t.abbr} size={56}/><h1 className="font-display font-bold text-xl mt-3">{t.city} {t.name}</h1>
+          <p className="text-muted text-sm">{game.homeAbbr ? (game.homeAbbr === t.abbr ? "Home" : "Away") : "Home/away unavailable"}</p>
+          {(index === 0 ? game.score1 : game.score2) !== null && <p className="text-4xl font-bold my-3">{index === 0 ? game.score1 : game.score2}</p>}
+        </div>)}
       </div>
-    );
-  }
-
-  const t1 = teams[game.team1];
-  const t2 = teams[game.team2];
-  const win1 = game.win1 ?? 50;
-  const fav = win1 >= 50 ? t1 : t2;
-  const favPct = win1 >= 50 ? win1 : 100 - win1;
-
-  if (!t1 || !t2) return null;
-
-  return (
-    <div className="px-6 sm:px-11 py-9 max-w-[880px] mx-auto">
-      {/* Back button */}
-      <button
-        onClick={() => navigate("/")}
-        className="flex items-center gap-1.5 text-[13px] text-muted cursor-pointer mb-7
-                   bg-transparent border-none p-0 hover:text-ink transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <path d="M19 12H5M12 5l-7 7 7 7" />
-        </svg>
-        Back to Dashboard
-      </button>
-
-      {/* Match hero card */}
-      <div className="bg-surface border border-line rounded-2xl px-10 py-8 mb-5
-                      shadow-[var(--shadow-card)]">
-        <div className="text-center text-[11px] font-bold tracking-[1.5px] text-info uppercase mb-7">
-          {game.date} · {game.time} · {game.venue}
-        </div>
-
-        <div className="flex items-center justify-between mb-7">
-          {/* Team 1 */}
-          <div className="text-center flex-1">
-            <TeamLogo team={t1} abbr={game.team1} size={68} />
-            <div className="font-display font-extrabold text-[26px] mt-3">{t1.city}</div>
-            <div className="font-display font-bold text-[20px]">
-              {t1.name}
-            </div>
-            <div className="text-[13px] text-muted mt-1">{t1.record}</div>
-          </div>
-
-          <div className="font-display font-black text-[52px] text-line-strong tracking-[6px]">
-            VS
-          </div>
-
-          {/* Team 2 */}
-          <div className="text-center flex-1">
-            <TeamLogo team={t2} abbr={game.team2} size={68} />
-            <div className="font-display font-extrabold text-[26px] mt-3">{t2.city}</div>
-            <div className="font-display font-bold text-[20px]">
-              {t2.name}
-            </div>
-            <div className="text-[13px] text-muted mt-1">{t2.record}</div>
-          </div>
-        </div>
-
-        <WinBar pct1={win1} team1={t1} team2={t2} />
-      </div>
-
-      {/* Prediction */}
-      {game.prediction && (
-        <div className="bg-accent-bg border border-accent-fg/25
-                        rounded-xl px-[26px] py-5 mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-1.5 h-1.5 rounded-full bg-accent-fg" />
-            <span className="text-[11px] font-bold tracking-[1.5px] text-accent-fg uppercase">
-              Prediction · {fav.name} favored at {favPct}%
-            </span>
-          </div>
-          <p className="text-sm text-accent-fg/90 leading-relaxed m-0">
-            {game.prediction}
-          </p>
-        </div>
-      )}
-
-      {/* Team stats side by side */}
-      <div className="grid grid-cols-2 gap-3.5">
-        {([game.team1, game.team2] as const).map((abbr) => {
-          const t = teams[abbr];
-          const s = stats[abbr];
-          return (
-            <div key={abbr} className="bg-surface border border-line rounded-xl px-[22px] py-5
-                                       shadow-[var(--shadow-card)]">
-              <div className="flex justify-between items-center mb-3.5">
-                <span className="font-display font-bold text-[15px] text-ink">
-                  {t.city} {t.name}
-                </span>
-                <span className="text-[10px] tracking-[1.2px] text-faint font-bold uppercase">
-                  LAST 5
-                </span>
-              </div>
-              {s ? (
-                <>
-                  <div className="flex gap-1.5 mb-[18px]">
-                    {s.form.map((r, i) => (
-                      <FormBadge key={i} r={r as "W" | "L"} />
-                    ))}
-                  </div>
-                  <div className="text-[10px] tracking-[1.2px] text-faint font-bold uppercase mb-2">
-                    PTS — LAST 10 GAMES
-                  </div>
-                  <SparkLine
-                    data={[...s.lastScores].reverse()}
-                    color={getTeamColors(t.abbr).accent}
-                    width={300}
-                    height={64}
-                    showValues
-                  />
-                </>
-              ) : (
-                <div className="text-[13px] text-faint">Loading stats…</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {game.win1 !== null ? <><WinBar pct1={game.win1} team1={away} team2={home}/>{game.prediction && <p className="mt-4 text-sm text-muted">{game.prediction}</p>}</> : <p className="text-center text-muted">Prediction unavailable</p>}
     </div>
-  );
+    <section className="bg-surface border border-line rounded-xl p-5 mb-5 overflow-auto">
+      <h2 className="font-bold mb-3">Quarter scores</h2>
+      {game.periodScores?.length ? <table className="w-full text-sm"><thead><tr><th className="text-left">Team</th>{game.periodScores.map(p => <th key={p.period}>{p.period <= 4 ? `Q${p.period}` : `OT${p.period - 4}`}</th>)}</tr></thead>
+        <tbody>{[away,home].map((t,i) => <tr key={t.abbr}><th className="text-left py-2">{t.abbr}</th>{game.periodScores!.map(p => <td className="text-center" key={p.period}>{i === 0 ? p.score1 : p.score2}</td>)}</tr>)}</tbody></table> : <p className="text-muted">Quarter scores unavailable</p>}
+    </section>
+    <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+      {[away,home].map(t => <div key={t.abbr} className="bg-surface border border-line rounded-xl p-5">
+        <h2 className="font-bold mb-3">{t.name} · Recent form</h2>
+        {statsErrors[t.abbr] ? <p role="alert">{statsErrors[t.abbr]} <button className="underline" onClick={retryStats[t.abbr]}>Retry</button></p> : stats[t.abbr] ? <>
+          <div className="flex gap-2 mb-4">{stats[t.abbr]!.form.map((result,i) => <FormBadge key={i} r={result}/>)}</div>
+          <SparkLine color="var(--color-brand)" data={[...stats[t.abbr]!.lastScores].reverse()} width={260} height={64}/>
+        </> : <p className="text-muted">Loading statistics…</p>}
+      </div>)}
+    </section>
+    {game.status !== "scheduled" && <section className="bg-surface border border-line rounded-xl p-5">
+      <h2 className="font-bold mb-3">Player box scores</h2>
+      {boxLoading ? <p>Loading box scores…</p> : boxError ? <p role="alert">{boxError} <button onClick={retryBox}>Retry</button></p> : boxScore.length === 0 ? <p className="text-muted">Box scores not imported yet</p> : [away,home].map(t => <div key={t.abbr} className="overflow-auto mb-5">
+        <h3 className="font-bold my-3">{t.name}</h3><table className="w-full text-sm text-left"><thead><tr>{["Player","MIN","PTS","REB","AST","STL","BLK"].map(h => <th key={h} className="p-2">{h}</th>)}</tr></thead>
+          <tbody>{boxScore.filter(p => p.teamAbbr === t.abbr).map(p => <tr key={p.nbaId} className="border-t border-line"><td className="p-2">{p.name}</td>{[p.minutes.toFixed(1),p.points,p.rebounds,p.assists,p.steals,p.blocks].map((v,i) => <td key={i} className="p-2">{v}</td>)}</tr>)}</tbody></table>
+      </div>)}
+    </section>}
+  </div>;
 }
