@@ -20,6 +20,8 @@ from app.services import (
     sync_team_stats,
     sync_teams,
 )
+from app.services.live_box_scores import sync_box_scores
+from app.services.sync_status import record_sync_status
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +33,7 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler(timezone="UTC")
 sync_lock = asyncio.Lock()
 
-SyncStep = Callable[[AsyncSession], Awaitable[None]]
+SyncStep = Callable[[AsyncSession], Awaitable[int | None]]
 
 
 async def run_steps(name: str, *steps: SyncStep) -> None:
@@ -45,9 +47,12 @@ async def run_steps(name: str, *steps: SyncStep) -> None:
         async with SessionLocal() as db:
             for step in steps:
                 try:
-                    await step(db)
+                    await record_sync_status(step.__name__, "running")
+                    count = await step(db)
+                    await record_sync_status(step.__name__, "success", count)
                 except Exception:
                     await db.rollback()
+                    await record_sync_status(step.__name__, "failed")
                     logger.exception(
                         "%s failed during %s",
                         name,
@@ -61,6 +66,7 @@ async def sync_live_job() -> None:
     await run_steps(
         "live games",
         sync_games,
+        sync_box_scores,
     )
 
 
@@ -104,7 +110,7 @@ def configure_scheduler(
 
     target.add_job(
         sync_schedule_job,
-        trigger=IntervalTrigger(hours=6),
+        trigger=IntervalTrigger(days=1),
         id="schedule-and-injuries",
         next_run_time=first_run + timedelta(minutes=2),
         max_instances=1,
@@ -115,9 +121,9 @@ def configure_scheduler(
 
     target.add_job(
         sync_statistics_job,
-        trigger=IntervalTrigger(hours=12),
+        trigger=IntervalTrigger(days=1),
         id="statistics",
-        next_run_time=first_run + timedelta(minutes=5),
+        next_run_time=first_run + timedelta(minutes=6),
         max_instances=1,
         coalesce=True,
         misfire_grace_time=3600,

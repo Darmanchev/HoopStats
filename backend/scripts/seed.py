@@ -1,5 +1,6 @@
 import asyncio
 import argparse
+from functools import partial
 from app.database import SessionLocal
 from app.services import (
     sync_teams,
@@ -11,42 +12,51 @@ from app.services import (
     sync_players,
     sync_predictions,
 )
+from app.config import settings
+from app.services.live_box_scores import sync_box_scores
+from app.services.sync_status import record_sync_status
 
 async def full_sync(db):
-    print("=== Syncing teams ===")
-    await sync_teams(db)
-    print("\n=== Syncing today's games ===")
-    await sync_games(db)
-    print("\n=== Syncing upcoming schedule ===")
-    await sync_schedule(db)
-    print("\n=== Syncing team stats ===")
-    await sync_team_stats(db)
-    print("\n=== Syncing historical games ===")
-    await sync_historical_games(db)
-    print("\n=== Syncing players ===")
-    await sync_players(db)
-    print("\n=== Syncing injuries ===")
-    await sync_injuries(db)
-    print("\n=== Predicting upcoming games ===")
-    await sync_predictions(db)
-    print("\nDone!")
+    return await run_import_steps(db, [
+        ("sync_teams", sync_teams), ("sync_games", sync_games),
+        ("sync_box_scores", sync_box_scores), ("sync_schedule", sync_schedule),
+        ("sync_historical_games", sync_historical_games),
+        ("sync_team_stats", sync_team_stats), ("sync_players", sync_players),
+        ("sync_injuries", sync_injuries), ("sync_predictions", sync_predictions),
+    ])
+
+
+async def run_import_steps(db, steps):
+    failed = 0
+    for name, step in steps:
+        print(f"=== {name} ===", flush=True)
+        await record_sync_status(name, "running")
+        try:
+            count = await step(db)
+        except Exception as exc:
+            await db.rollback()
+            failed += 1
+            await record_sync_status(name, "failed")
+            print(f"FAILED: {name}: {type(exc).__name__}: {exc}", flush=True)
+        else:
+            await record_sync_status(name, "success", count)
+            print(f"OK: {name}" + (f" — {count} records" if count is not None else ""), flush=True)
+    print(f"Import finished: {len(steps) - failed} succeeded, {failed} failed.", flush=True)
+    return 1 if failed else 0
 
 async def partial_sync(db):
-    print("Синхронизация команд...")
-    await sync_teams(db)
-    print("Загрузка исторических игр...")
-    await sync_historical_games(db, season="2025-26")
-    print("Синхронизация сегодняшних игр...")
-    await sync_games(db)
-    print("Синхронизация статистики команд...")
-    await sync_team_stats(db)
-    print("Готово!")
+    return await run_import_steps(db, [
+        ("sync_teams", sync_teams),
+        ("sync_historical_games", partial(sync_historical_games, season=settings.current_season)),
+        ("sync_games", sync_games), ("sync_box_scores", sync_box_scores),
+        ("sync_team_stats", sync_team_stats),
+    ])
 
 async def load_seasons_sync(db, seasons):
-    for season in seasons:
-        print(f"\n========== СЕЗОН {season} ==========")
-        await sync_historical_games(db, season=season)
-    print("\nВсе сезоны загружены.")
+    return await run_import_steps(db, [
+        (f"historical:{season}", partial(sync_historical_games, season=season))
+        for season in seasons
+    ])
 
 async def main():
     parser = argparse.ArgumentParser(description="Утилита синхронизации данных NBA")
@@ -57,11 +67,11 @@ async def main():
 
     async with SessionLocal() as db:
         if args.seasons:
-            await load_seasons_sync(db, args.seasons)
+            return await load_seasons_sync(db, args.seasons)
         elif args.sync:
-            await partial_sync(db)
+            return await partial_sync(db)
         else:
-            await full_sync(db)
+            return await full_sync(db)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(asyncio.run(main()))

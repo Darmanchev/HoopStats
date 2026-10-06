@@ -1,6 +1,7 @@
 import type { Game, UpcomingGame, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
 import { getTeamColors } from "../../utils/colors";
+import { formatGameTime } from "../../utils/gameTime";
 
 interface Props {
   game: Game;
@@ -34,7 +35,7 @@ export default function ScheduleCard({ game, team1, team2, onSelect }: Props) {
     v2 = `${(100 - win1).toFixed(1)}%`;
     c1 = getTeamColors(game.team1).accent;
     c2 = getTeamColors(game.team2).accent;
-    status = game.time;
+    status = formatGameTime(game);
   }
 
   const teamLine = (team: Team, abbr: string, value: string, color: string) => (

@@ -21,7 +21,8 @@ dependencies = [
     "joblib>=1.4,<2.0",
     "pydantic>=2.13.4,<3.0.0",
     "apscheduler>=3.10.4,<4.0.0",
-    "redis>=6.0,<7.0"
+    "redis>=6.0,<7.0",
+    "curl-cffi>=0.16.3",
 ]
 
 [tool.uv]
@@ -29,6 +30,7 @@ package = false
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.21,<1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
 ]

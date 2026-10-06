@@ -80,16 +80,22 @@ export async function getMatch(id: string): Promise<LiveGame> {
   return fetcher(`/games/${id}`);
 }
 
-export function getTeams(): Promise<Record<string, Team>> {
-  return cachedRequest("teams", API_MEMORY_CACHE_MS, () =>
-    fetcher<Team[]>("/teams/").then((list) =>
+export function getTeams(season?: string): Promise<Record<string, Team>> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return cachedRequest(season ? `teams:${season}` : "teams", API_MEMORY_CACHE_MS, () =>
+    fetcher<Team[]>(`/teams/${query}`).then((list) =>
       Object.fromEntries(list.map((team) => [team.abbr, team])),
     ),
   );
 }
 
-export async function getTeamStats(abbr: string): Promise<TeamStats> {
-  return fetcher(`/teams/${abbr}/stats`)
+export function getTeamSeasons(): Promise<string[]> {
+  return fetcher("/teams/seasons");
+}
+
+export async function getTeamStats(abbr: string, season?: string): Promise<TeamStats> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return fetcher(`/teams/${abbr}/stats${query}`)
 }
 
 export async function getInjuries(): Promise<Injury[]> {
@@ -101,12 +107,14 @@ export async function getTeamInjuries(team_abbr: string): Promise<Injury[]> {
 }
 
 export async function getPlayers(params?: {
+  search?: string;
   skip?: number;
   limit?: number;
   sort_by?: string;
   team?: string;
   position?: string;
   min_games?: number;
+  season?: string;
 }): Promise<Player[]> {
   const qs = new URLSearchParams();
   if (params?.skip !== undefined) qs.set("skip", String(params.skip));
@@ -115,12 +123,22 @@ export async function getPlayers(params?: {
   if (params?.team) qs.set("team", params.team);
   if (params?.position) qs.set("position", params.position);
   if (params?.min_games !== undefined) qs.set("min_games", String(params.min_games));
+  if (params?.season) qs.set("season", params.season);
+  if (params?.search) qs.set("search", params.search);
   const query = qs.toString();
   return fetcher(`/players/${query ? `?${query}` : ""}`);
 }
 
-export async function getPlayer(id: number): Promise<PlayerDetail> {
-  return fetcher(`/players/${id}`);
+export function getPlayerSeasons(): Promise<string[]> {
+  return fetcher("/players/seasons");
+}
+
+export async function getPlayer(
+  id: number,
+  season?: string,
+): Promise<PlayerDetail> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return fetcher(`/players/${id}${query}`);
 }
 
 export interface EloEntry {
@@ -132,10 +150,35 @@ export async function getElo(): Promise<EloEntry[]> {
   return fetcher("/analytics/elo");
 }
 
-export function getLeaders(): Promise<Record<string, Player[]>> {
-  return cachedRequest("analytics:leaders", API_MEMORY_CACHE_MS, () =>
-    fetcher("/analytics/leaders"),
+export function getLeaders(season?: string): Promise<Record<string, Player[]>> {
+  const query = season ? `?season=${encodeURIComponent(season)}` : "";
+  return cachedRequest(`analytics:leaders:${season ?? "latest"}`, API_MEMORY_CACHE_MS, () =>
+    fetcher(`/analytics/leaders${query}`),
   );
+}
+
+export interface DashboardSeasonData {
+  season: string | null;
+  seasons: string[];
+  teams: Team[];
+  leaders: Record<string, Player[]>;
+  teamsAvailable: boolean;
+  playersAvailable: boolean;
+}
+
+export interface SyncSourceStatus {
+  state: "running" | "success" | "failed";
+  last_attempt: string;
+  last_success?: string;
+  count?: number | null;
+}
+
+export function getDashboardSeason(season?: string): Promise<DashboardSeasonData> {
+  return fetcher(`/analytics/dashboard${season ? `?season=${encodeURIComponent(season)}` : ""}`);
+}
+
+export function getSyncStatus(): Promise<Record<string, SyncSourceStatus>> {
+  return fetcher("/analytics/sync-status");
 }
 
 export function getBoxScore(gameId: string): Promise<PlayerGameStat[]> {

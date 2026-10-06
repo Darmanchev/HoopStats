@@ -1,14 +1,25 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAllTeams } from "../hooks/useAllTeams";
 import TeamCard from "../components/teams/TeamCard";
 import { LoadingState, ErrorState } from "../components/ui/PageState";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTeamSeasons } from "../hooks/useTeamSeasons";
 
 type SortBy = "name" | "record" | "abbr";
 
 export default function Teams() {
   const navigate = useNavigate();
-  const { teams, stats, loading, error } = useAllTeams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { seasons, loading: seasonsLoading, error: seasonsError } = useTeamSeasons();
+  const querySeason = searchParams.get("season");
+  const selectedSeason = querySeason && seasons.includes(querySeason) ? querySeason : seasons[0];
+  const { teams, stats, loading, error } = useAllTeams(selectedSeason, !seasonsLoading && !seasonsError);
+  useEffect(() => {
+    if (!selectedSeason || querySeason === selectedSeason) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("season", selectedSeason);
+    setSearchParams(next, { replace: true });
+  }, [selectedSeason, querySeason, searchParams, setSearchParams]);
   const [sortBy, setSortBy] = useState<SortBy>("record");
   const [search, setSearch] = useState("");
 
@@ -29,8 +40,8 @@ export default function Teams() {
       t.abbr.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
+  if (seasonsLoading) return <LoadingState />;
+  if (error || seasonsError) return <ErrorState message={error || seasonsError || "Unable to load teams"} />;
 
   return (
     <div className="px-6 sm:px-11 py-9 max-w-[1100px] mx-auto">
@@ -38,10 +49,24 @@ export default function Teams() {
         <h1 className="font-display font-extrabold text-[26px] tracking-wide uppercase">
           NBA Teams
         </h1>
-        <p className="text-[13px] text-muted mt-1">{filtered.length} teams</p>
+        <p className="text-[13px] text-muted mt-1">{filtered.length} teams{selectedSeason ? ` · ${selectedSeason} regular season · based on imported games` : ""}</p>
       </header>
 
       <div className="flex gap-3 mb-6 items-center flex-wrap">
+        <select
+          aria-label="Season"
+          value={selectedSeason ?? ""}
+          disabled={seasons.length === 0}
+          onChange={(event) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("season", event.target.value);
+            setSearchParams(next);
+          }}
+          className="px-3.5 py-2 rounded-lg border border-line bg-surface text-ink text-sm outline-none focus:border-brand"
+        >
+          {seasons.length === 0 && <option value="">No imported seasons</option>}
+          {seasons.map((season) => <option key={season} value={season}>{season}</option>)}
+        </select>
         <input
           type="text"
           placeholder="Search teams..."
@@ -69,16 +94,17 @@ export default function Teams() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
+      {seasons.length === 0 && <p className="text-muted mb-6">Season records will be available after historical games are imported.</p>}
+      {loading ? <LoadingState /> : <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
         {filtered.map((team) => (
           <TeamCard
             key={team.abbr}
             team={team}
             stats={stats[team.abbr]}
-            onClick={(abbr) => navigate(`/teams/${abbr}`)}
+            onClick={(abbr) => navigate(`/teams/${abbr}${selectedSeason ? `?season=${encodeURIComponent(selectedSeason)}` : ""}`)}
           />
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

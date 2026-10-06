@@ -9,6 +9,18 @@ import logging
 import re
 from typing import Any
 
+# Включаем обход Akamai для библиотеки nba_api через monkey-patching
+import requests
+from curl_cffi import requests as cffi_requests
+
+class ChromeSession(cffi_requests.Session):
+    def __init__(self, *args, **kwargs):
+        kwargs["impersonate"] = "chrome"
+        super().__init__(*args, **kwargs)
+
+requests.Session = ChromeSession
+requests.get = lambda *args, **kwargs: ChromeSession().get(*args, **kwargs)
+
 import httpx
 from nba_api.live.nba.endpoints import boxscore, scoreboard
 from nba_api.stats.endpoints import (
@@ -287,7 +299,7 @@ async def fetch_schedule() -> dict:
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         "Referer": "https://www.nba.com/",
     }
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with cffi_requests.AsyncSession(timeout=30, impersonate="chrome") as client:
         resp = await client.get(SCHEDULE_URL, headers=headers)
         resp.raise_for_status()
         return resp.json()

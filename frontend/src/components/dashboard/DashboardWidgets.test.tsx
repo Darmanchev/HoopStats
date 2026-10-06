@@ -9,6 +9,7 @@ import StandingsWidget from "./StandingsWidget";
 import TeamEfficiencyChart from "./TeamEfficiencyChart";
 import TopPlayerWidget from "./TopPlayerWidget";
 import UpcomingGamesWidget from "./UpcomingGamesWidget";
+import { formatGameTime } from "../../utils/gameTime";
 
 const bos: Team = {
   abbr: "BOS",
@@ -70,6 +71,9 @@ const liveGame: LiveGame = {
 const topPlayer: Player = {
   id: 7,
   nbaId: 777,
+  balldontlieId: null,
+  apiNbaId: null,
+  season: null,
   name: "Real Leader",
   teamAbbr: "BOS",
   position: "G",
@@ -100,6 +104,16 @@ const playerStat: PlayerGameStat = {
 };
 
 describe("dashboard widgets", () => {
+  it("formats timestamp times in featured and upcoming game cards", () => {
+    const game = { ...scheduledGame, time: "2026-10-20T19:00:00Z", startTime: "2026-10-20T19:00:00Z" };
+    render(<><FeaturedGameWidget game={game} team1={bos} team2={lal} /><UpcomingGamesWidget games={[game]} teams={teams} /></>);
+    expect(screen.queryByText(game.time)).not.toBeInTheDocument();
+    const localTime = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric", minute: "2-digit",
+    }).format(new Date(game.startTime));
+    expect(screen.getByText(localTime)).toBeInTheDocument();
+    expect(screen.getByText(formatGameTime(game))).toBeInTheDocument();
+  });
   it("never displays a fake score for a scheduled featured game", () => {
     render(
       <FeaturedGameWidget
@@ -130,7 +144,7 @@ describe("dashboard widgets", () => {
 
   it("renders a truthful live-stats empty state", () => {
     render(<LiveGameStatsWidget game={null} players={[]} />);
-    expect(screen.getByText("No live box score available")).toBeInTheDocument();
+    expect(screen.getByText("No live or completed game today")).toBeInTheDocument();
   });
 
   it("orders live player rows by points", () => {

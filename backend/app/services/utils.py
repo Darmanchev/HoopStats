@@ -2,11 +2,12 @@
 
 import logging
 from datetime import datetime
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
 # Текущий сезон NBA (единственная точка изменения при смене сезона)
-CURRENT_SEASON = "2025-26"
+CURRENT_SEASON = settings.current_season
 
 # URL расписания NBA (публичный CDN)
 SCHEDULE_URL = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json"

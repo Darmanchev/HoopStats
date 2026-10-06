@@ -4,12 +4,12 @@ HoopStats is a full-stack NBA statistics dashboard with match predictions. I sta
 
 ## What the project does
 
-- imports teams, games, schedules, player statistics and injuries;
+- imports teams, games, schedules, basic player profiles and injuries;
 - shows dashboards, standings, schedules, team form and player leaders;
 - calculates Elo ratings from historical games;
 - predicts upcoming matches with logistic regression;
 - explains a prediction using Elo, recent form, record and net rating;
-- refreshes part of the data every 12 hours.
+- refreshes live data every 15 minutes and the remaining data daily.
 
 ## Why these technologies
 
@@ -35,19 +35,42 @@ Requirements: Docker with Compose.
 git clone https://github.com/Darmanchev/HoopStats.git
 cd HoopStats
 cp .env.example .env
+# Add your BALLDONTLIE_API_KEY and API_NBA_KEY before importing NBA data.
 make up
 ```
 
 The local `.env` file is intentionally ignored by Git. The database migrations
 run automatically when the backend starts.
 
-To load NBA/ESPN data after the containers start:
+Create a free API key at [app.balldontlie.io](https://app.balldontlie.io), then
+set `BALLDONTLIE_API_KEY` in `.env`. The free tier supplies the teams, basic
+player profiles (name, team and position), and games used by HoopStats. It is
+limited to five requests per minute, so the backend spaces provider requests
+at least 12 seconds apart and large first-time imports can take several
+minutes.
+
+To load BALLDONTLIE/ESPN data after the containers start:
 
 ```bash
 make seed
 ```
 
-The initial sync calls external NBA/ESPN services and may take several minutes. The application is available at:
+Player profiles and season statistics use the NBA-specific
+[API-NBA service from API-Sports](https://api-sports.io/sports/nba). Create a
+free API-Sports account and set `API_NBA_KEY` in `.env`. The free plan allows
+100 requests per day. A complete season import uses about 61 requests, so
+historical player seasons are imported manually and are not scheduled:
+
+```bash
+make seed-players SEASON=2025-26
+```
+
+The import fetches every NBA team before replacing that season in one database
+transaction. If the provider rejects or interrupts any request, the existing
+season data stays unchanged.
+
+The initial sync calls external BALLDONTLIE and ESPN services. The application
+is available at:
 
 - frontend: [http://localhost:5173](http://localhost:5173)
 - API: [http://localhost:8000](http://localhost:8000)
@@ -67,6 +90,7 @@ Useful shortcuts:
 make logs
 make migrate
 make seed
+make seed-players SEASON=2025-26
 make train
 make status
 make down
@@ -77,17 +101,44 @@ The scheduler separates synchronization by cost:
 | Data | Interval |
 | --- | --- |
 | Live games | 15 minutes |
-| Schedule and injuries | 6 hours |
-| Teams, players, team statistics, current-season history, and predictions | 12 hours |
+| Schedule and injuries | 24 hours |
+| Teams, players, team statistics, current-season history, and predictions | 24 hours |
 
 After startup, live games sync immediately, schedule and injuries sync after
-two minutes, and the larger statistics sync starts after five minutes. Jobs are
+two minutes, and the larger statistics sync starts after six minutes. Jobs are
 staggered and never run concurrently, which reduces load on the external APIs.
 
 ## Production deployment with Coolify
 
+Set `CURRENT_SEASON=2026-27` (or the season you want the scheduled imports to
+refresh) in the deployment environment. The value must use consecutive
+`YYYY-YY` years. Dashboard historical statistics have a separate season selector:
+leaders use imported player-season averages, and standings/form use completed
+regular-season games. Seasons with only one dataset show an explicit missing-data
+message for the other dataset. Partial game imports produce partial team records.
+
+The `20261004_game_seasons` migration repairs season labels and game types for
+recognizable legacy NBA game IDs, including preseason games. It preserves IDs,
+scores and player box scores, and does not modify BALLDONTLIE (`bdl:`) records
+or ambiguous IDs/dates. Preseason games can be selected separately on Schedule
+and are excluded from regular-season standings. Game inserts must now supply an
+explicit season rather than silently defaulting to `2025-26`.
+Back up the production database before redeploying: production runs this repair
+automatically through its migration service. Downgrading restores the old schema
+default but deliberately does not restore incorrect season labels.
+
+The live job matches NBA scoreboard games to local BALLDONTLIE records by home
+team, away team, and Eastern game date. It imports box scores using the official
+NBA ID and stores them under the local game ID; ambiguous matches are skipped.
+NBA scoreboard/box-score availability still depends on the public NBA service.
+
+The dashboard's "Last checked" time is the browser refresh time. Source update
+status separately reports successful imports and failures. Status is held in
+Redis and starts empty after Redis is recreated. `make seed` prints per-step
+counts and exits unsuccessfully if any step fails, while completing other steps.
+
 Choose the Docker Compose build pack in Coolify and set **Docker Compose
-Location** to `/compose.prod.yaml`. Set a domain for the `frontend` service on
+Location** to `/compose.prod.yaml`. Set a domain for the `hoopstats-frontend` service on
 container port `8080`. Set `APP_HOST` to that domain's hostname without a
 scheme, port, or path (for example, `stats.example.com`).
 Enable **Force HTTPS** for that domain. Coolify terminates TLS and redirects
@@ -100,11 +151,12 @@ Configure production values in Coolify instead of keeping a production
 environment file in the repository. Required variables:
 
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`;
-- `DATABASE_URL`, using the PostgreSQL owner account for migrations;
+- `DATABASE_URL`, using the PostgreSQL owner account for migrations. Use
+  `hoopstats-db` as the database host inside the Compose network;
 - `APP_DB_USER` and `APP_DB_PASSWORD`, using a separate runtime account;
-- `SECRET_KEY` and `APP_HOST`.
+- `SECRET_KEY`, `APP_HOST`, `BALLDONTLIE_API_KEY`, and `API_NBA_KEY`.
 
-`NBA_API_KEY`, `BACKEND_WORKERS`, `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
+`BACKEND_WORKERS`, `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 are optional. For a manual deployment outside Coolify, provide an environment
 file stored outside the repository:
 
@@ -132,13 +184,13 @@ rebuilds current ratings once. The scheduler runs in a separate container, so
 multiple Uvicorn workers do not duplicate periodic synchronization jobs.
 
 For the first production deployment, open the Coolify terminal for the
-`scheduler` container and import older seasons once:
+`hoopstats-scheduler` container and import older seasons once:
 
 ```bash
 python -m scripts.seed --seasons 2023-24 2024-25 2025-26
 ```
 
-Do not schedule old-season imports repeatedly. The 12-hour job refreshes only
+Do not schedule old-season imports repeatedly. The 24-hour job refreshes only
 the current season.
 
 ## Architecture
@@ -146,7 +198,7 @@ the current season.
 ```text
 frontend/                          React dashboard and production image
 backend/app/routers/               API endpoints
-backend/app/services/clients/      NBA and ESPN integrations
+backend/app/services/clients/      BALLDONTLIE, NBA and ESPN integrations
 backend/app/services/repositories/ database operations
 backend/app/services/sync.py       data synchronization
 backend/app/ml/                    features, training and prediction
@@ -162,3 +214,9 @@ The scheduler refreshes teams, games, schedules, team statistics, players,
 injuries, and predictions. Automated backend tests cover the main API contract
 and scheduler behavior. The next priorities are broader integration coverage,
 frontend tests, and model experiment tracking.
+
+The existing player routes remain backward compatible, with an optional
+season query and a new player-season listing endpoint. API-NBA supplies player
+profiles and season statistics; BALLDONTLIE continues to supply teams and
+games. Provider IDs remain separate, unsupported fields stay nullable, and
+team statistics and injuries continue through their existing integrations.

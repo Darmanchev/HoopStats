@@ -1,8 +1,9 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { PlayerDetail } from "../types";
 import TeamLogo from "../components/teams/TeamLogo";
 import { LoadingState } from "../components/ui/PageState";
 import { usePlayerDetail } from "../hooks/usePlayerDetail";
+import PlayerHeadshot from "../components/players/PlayerHeadshot";
 
 const statCategories = [
   { key: "pts",  label: "Points",   sub: "PPG", color: "#C8102E" },
@@ -22,7 +23,12 @@ const shootingStats = [
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { player, loading, error } = usePlayerDetail(id);
+  const [searchParams] = useSearchParams();
+  const season = searchParams.get("season") ?? undefined;
+  const playersPath = season
+    ? `/players?season=${encodeURIComponent(season)}`
+    : "/players";
+  const { player, loading, error } = usePlayerDetail(id, season);
 
   if (loading) return <LoadingState />;
 
@@ -31,7 +37,7 @@ export default function PlayerDetailPage() {
       <div className="flex flex-col items-center justify-center h-screen gap-4 px-6 text-center">
         <div className="text-sm text-brand">{error || "Player not found"}</div>
         <button
-          onClick={() => navigate("/players")}
+          onClick={() => navigate(playersPath)}
           className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-lg
                      cursor-pointer border-none hover:opacity-90 transition-opacity"
         >
@@ -52,7 +58,7 @@ export default function PlayerDetailPage() {
     <div className="px-6 sm:px-11 py-9 max-w-[800px] mx-auto">
       {/* Back button */}
       <button
-        onClick={() => navigate("/players")}
+        onClick={() => navigate(playersPath)}
         className="flex items-center gap-1.5 text-[13px] text-muted cursor-pointer mb-7
                    bg-transparent border-none p-0 hover:text-ink transition-colors"
       >
@@ -64,17 +70,21 @@ export default function PlayerDetailPage() {
       </button>
 
       {/* Header */}
-      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-2xl px-10 py-8 mb-5 flex items-center gap-6">
-        <TeamLogo team={teamFallback} abbr={player.teamAbbr} size={80} />
-        <div>
+      <div className="bg-surface border border-line shadow-[var(--shadow-card)] rounded-2xl px-5 sm:px-10 py-8 mb-5 flex flex-wrap items-center gap-6">
+        <PlayerHeadshot nbaId={player.nbaId} name={player.name} className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl shrink-0" />
+        <div className="flex-1 min-w-0">
           <div className="font-display font-extrabold text-[32px]">{player.name}</div>
           <div className="text-base text-muted mt-1">
             {player.position}
             {player.jerseyNumber ? ` · #${player.jerseyNumber}` : ""}
             <span className="ml-3">{player.teamCity} {player.teamName}</span>
           </div>
-          <div className="text-[13px] text-faint mt-1">{player.gamesPlayed} Games Played</div>
+          <div className="text-[13px] text-faint mt-1">
+            {player.gamesPlayed} Games Played
+            {season ? ` · ${season} Season` : ""}
+          </div>
         </div>
+        <TeamLogo team={teamFallback} abbr={player.teamAbbr} size={48} />
       </div>
 
       {/* Per-game averages */}

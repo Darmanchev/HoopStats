@@ -1,11 +1,74 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload  # ← НОВОЕ
+from sqlalchemy.orm import selectinload
+
 from ..database import get_db
 from ..models.player import Player
-from ..schemas.player import PlayerSchema, PlayerDetailSchema
+from ..models.player_season_stat import PlayerSeasonStat
+from ..models.team import Team
+from ..schemas.player import PlayerDetailSchema, PlayerSchema
+from ..services.clients.api_nba_normalizers import season_start_year
+from ..services.repositories.player_seasons import list_player_seasons
+from ..services.player_identity import resolve_nba_id
+
+
 router = APIRouter(prefix="/players", tags=["players"])
+
+
+def _position_filter(column, position: str):
+    group = position.upper()
+    values = {
+        "G": ["G", "PG", "SG", "G-F", "F-G", "PG-SG", "SG-PG", "SG-SF", "SF-SG"],
+        "F": ["F", "SF", "PF", "G-F", "F-G", "F-C", "C-F", "SF-PF", "PF-SF", "SG-SF", "SF-SG", "PF-C", "C-PF"],
+        "C": ["C", "F-C", "C-F", "PF-C", "C-PF"],
+    }.get(group, [group])
+    return func.upper(column).in_(values)
+
+
+def _search_filter(search: str, team_column):
+    text = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{text}%"
+    return or_(Player.name.ilike(pattern, escape="\\"), team_column.ilike(pattern, escape="\\"))
+
+
+def _validate_season(season: str | None) -> None:
+    if season is None:
+        return
+    try:
+        season_start_year(season)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _season_player_schema(
+    player: Player,
+    stats: PlayerSeasonStat,
+) -> PlayerSchema:
+    return PlayerSchema(
+        id=player.id,
+        nba_id=resolve_nba_id(player.name, player.nba_id),
+        balldontlie_id=player.balldontlie_id,
+        api_nba_id=player.api_nba_id,
+        season=stats.season,
+        name=player.name,
+        team_abbr=stats.primary_team_abbr,
+        position=stats.position if stats.position is not None else player.position,
+        jersey_number=stats.jersey_number if stats.position is not None else player.jersey_number,
+        games_played=stats.games_played,
+        pts=stats.pts,
+        reb=stats.reb,
+        ast=stats.ast,
+        stl=stats.stl,
+        blk=stats.blk,
+        fg_pct=stats.fg_pct,
+        fg3_pct=stats.fg3_pct,
+        ft_pct=stats.ft_pct,
+        mins=stats.mins,
+        recent_games=stats.recent_games,
+    )
+
+
 @router.get("/", response_model=list[PlayerSchema])
 async def get_players(
     skip: int = Query(0, ge=0),
@@ -14,28 +77,109 @@ async def get_players(
     team: str | None = None,
     position: str | None = None,
     min_games: int = Query(0, ge=0),
+    search: str | None = Query(None, max_length=100),
+    season: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Player).where(Player.games_played >= min_games)
+    _validate_season(season)
+    if season is None:
+        query = select(Player).where(Player.games_played >= min_games)
+        if team:
+            query = query.where(Player.team_abbr == team.upper())
+        if position:
+            query = query.where(_position_filter(Player.position, position))
+        if search:
+            query = query.where(_search_filter(search, Player.team_abbr))
+        sort_map = {
+            "pts": Player.pts.desc(),
+            "reb": Player.reb.desc(),
+            "ast": Player.ast.desc(),
+            "games_played": Player.games_played.desc(),
+            "name": Player.name.asc(),
+        }
+        query = (
+            query.order_by(sort_map.get(sort_by, Player.pts.desc()), Player.id)
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(query)
+        return [PlayerSchema.model_validate(player).model_copy(update={
+            "nba_id": resolve_nba_id(player.name, player.nba_id),
+        }) for player in result.scalars().all()]
+
+    query = (
+        select(Player, PlayerSeasonStat)
+        .join(PlayerSeasonStat, PlayerSeasonStat.player_id == Player.id)
+        .where(
+            PlayerSeasonStat.season == season,
+            PlayerSeasonStat.games_played >= min_games,
+        )
+    )
     if team:
-        query = query.where(Player.team_abbr == team.upper())
+        query = query.where(PlayerSeasonStat.primary_team_abbr == team.upper())
     if position:
-        query = query.where(Player.position == position.upper())
-    sort_map = {
-        "pts": Player.pts.desc(),
-        "reb": Player.reb.desc(),
-        "ast": Player.ast.desc(),
-        "games_played": Player.games_played.desc(),
+        query = query.where(_position_filter(func.coalesce(PlayerSeasonStat.position, Player.position), position))
+    if search:
+        query = query.where(_search_filter(search, PlayerSeasonStat.primary_team_abbr))
+    season_sort_map = {
+        "pts": PlayerSeasonStat.pts.desc(),
+        "reb": PlayerSeasonStat.reb.desc(),
+        "ast": PlayerSeasonStat.ast.desc(),
+        "games_played": PlayerSeasonStat.games_played.desc(),
         "name": Player.name.asc(),
     }
-    query = query.order_by(sort_map.get(sort_by, Player.pts.desc())).offset(skip).limit(limit)
+    query = (
+        query.order_by(season_sort_map.get(sort_by, PlayerSeasonStat.pts.desc()), Player.id)
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(query)
-    return result.scalars().all()
+    return [
+        _season_player_schema(player, stats)
+        for player, stats in result.all()
+    ]
+
+
+@router.get("/seasons", response_model=list[str])
+async def get_player_seasons(
+    db: AsyncSession = Depends(get_db),
+) -> list[str]:
+    return await list_player_seasons(db)
+
+
 @router.get("/{player_id}", response_model=PlayerDetailSchema)
-async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
+async def get_player(
+    player_id: int,
+    season: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
+    db: AsyncSession = Depends(get_db),
+):
+    _validate_season(season)
+    if season is not None:
+        result = await db.execute(
+            select(Player, PlayerSeasonStat, Team)
+            .join(PlayerSeasonStat, PlayerSeasonStat.player_id == Player.id)
+            .join(Team, Team.abbr == PlayerSeasonStat.primary_team_abbr)
+            .where(
+                Player.id == player_id,
+                PlayerSeasonStat.season == season,
+            )
+        )
+        record = result.one_or_none()
+        if record is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Player season not found",
+            )
+        player, stats, team = record
+        return PlayerDetailSchema(
+            **_season_player_schema(player, stats).model_dump(),
+            team_name=team.name,
+            team_city=team.city,
+        )
+
     result = await db.execute(
         select(Player)
-        .options(selectinload(Player.team))  # ← eagerly load team
+        .options(selectinload(Player.team))
         .where(Player.id == player_id)
     )
     player = result.scalar_one_or_none()
@@ -43,7 +187,9 @@ async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Player not found")
     return PlayerDetailSchema(
         id=player.id,
-        nba_id=player.nba_id,
+        nba_id=resolve_nba_id(player.name, player.nba_id),
+        balldontlie_id=player.balldontlie_id,
+        api_nba_id=player.api_nba_id,
         name=player.name,
         team_abbr=player.team_abbr,
         position=player.position,

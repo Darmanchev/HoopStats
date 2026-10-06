@@ -7,7 +7,21 @@ class Player(Base):
     __tablename__ = "players"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    nba_id: Mapped[int] = mapped_column(Integer, unique=True)
+    nba_id: Mapped[int | None] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=True,
+    )
+    balldontlie_id: Mapped[int | None] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=True,
+    )
+    api_nba_id: Mapped[int | None] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=True,
+    )
     name: Mapped[str] = mapped_column(String(100))
     team_abbr: Mapped[str] = mapped_column(String(5), ForeignKey("teams.abbr"))
     position: Mapped[str] = mapped_column(String(5))
@@ -26,3 +40,8 @@ class Player(Base):
 
     # relationships
     team = relationship("Team", back_populates="players")
+    season_stats = relationship(
+        "PlayerSeasonStat",
+        back_populates="player",
+        cascade="all, delete-orphan",
+    )

@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LiveGame, Player, Team, UpcomingGame } from "../types";
 import {
   getBoxScore,
+  getDashboardSeason,
+  getSyncStatus,
   getLeaders,
   getTeams,
   getTodayGames,
@@ -13,6 +15,8 @@ import { useDashboard } from "./useDashboard";
 
 vi.mock("../lib/api", () => ({
   getBoxScore: vi.fn(),
+  getDashboardSeason: vi.fn(),
+  getSyncStatus: vi.fn(),
   getLeaders: vi.fn(),
   getTeams: vi.fn(),
   getTodayGames: vi.fn(),
@@ -55,6 +59,9 @@ const liveGame: LiveGame = {
 const leader: Player = {
   id: 1,
   nbaId: 101,
+  balldontlieId: null,
+  apiNbaId: null,
+  season: null,
   name: "Test Player",
   teamAbbr: "BOS",
   position: "F",
@@ -79,6 +86,8 @@ const mockedGetLeaders = vi.mocked(getLeaders);
 const mockedGetBoxScore = vi.mocked(getBoxScore);
 
 function mockSuccessfulRefresh() {
+  vi.mocked(getDashboardSeason).mockResolvedValue({ season: "2025-26", seasons: ["2025-26"], teams: [team], leaders: { points: [leader] }, teamsAvailable: true, playersAvailable: true });
+  vi.mocked(getSyncStatus).mockResolvedValue({});
   mockedGetTeams.mockResolvedValue({ BOS: team });
   mockedGetUpcomingGames.mockResolvedValue([upcomingGame]);
   mockedGetTodayGames.mockResolvedValue([liveGame]);
@@ -87,6 +96,14 @@ function mockSuccessfulRefresh() {
 }
 
 describe("useDashboard", () => {
+  it("reloads seasonal statistics without changing the live-game source", async () => {
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.seasonData).not.toBeNull());
+    await act(async () => { result.current.setSelectedSeason("2023-24"); });
+    await waitFor(() => expect(getDashboardSeason).toHaveBeenLastCalledWith("2023-24"));
+    expect(getLeaders).toHaveBeenLastCalledWith("2023-24");
+    expect(result.current.featuredGame?.id).toBe(liveGame.id);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mockSuccessfulRefresh();

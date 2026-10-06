@@ -1,5 +1,6 @@
 import type { UpcomingGame, Team } from "../../types";
 import TeamLogo from "../teams/TeamLogo";
+import { formatGameTime } from "../../utils/gameTime";
 
 interface Props {
   games: UpcomingGame[];
@@ -33,8 +34,8 @@ export default function UpcomingGamesWidget({ games, teams, onPreview = () => un
                 <span className="font-display font-bold text-[14px] text-ink">{g.team1}</span>
               </div>
               
-              <div className="flex flex-col items-center flex-1">
-                <span className="text-[13px] font-semibold text-ink">{g.time}</span>
+              <div className="flex flex-col items-center flex-1 min-w-0">
+                <span className="text-[13px] font-semibold text-ink text-center">{formatGameTime(g)}</span>
                 <span className="text-[11px] text-muted text-center leading-tight mt-0.5 max-w-[100px] truncate">{g.venue || "TBA"}</span>
                 <button
                   type="button"
